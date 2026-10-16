@@ -9,6 +9,7 @@ import { controlsState } from './ui/controlsState.js';
 import { createHistoryStore } from './history/store.js';
 import { createHistoryPanel } from './ui/historyPanel.js';
 import { createExperimentForm } from './ui/experimentForm.js';
+import { createExportDialog } from './ui/exportDialog.js';
 import { createVisualsPanel } from './ui/visualsPanel.js';
 import { createVisualsStore } from './visuals/store.js';
 import { defaultColorFor } from './visuals/catalog.js';
@@ -55,6 +56,19 @@ const visuals = createVisualsPanel({
   view.setCarColor(v.color);
 }
 const history = createHistoryStore();
+createExportDialog({
+  store: history,
+  openBtn: $('open-export'),
+  dialog: $('export-dialog'),
+  backdrop: $('export-backdrop'),
+  list: $('export-list'),
+  countEl: $('export-count'),
+  allBox: $('export-all'),
+  goBtn: $('export-go'),
+  cancelBtn: $('export-cancel'),
+  closeBtn: $('close-export'),
+  statusEl: $('export-status'),
+});
 createHistoryPanel({
   store: history,
   drawer: $('history-drawer'),
