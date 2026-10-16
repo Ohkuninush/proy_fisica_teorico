@@ -1,4 +1,4 @@
-import { DEFAULTS, validateParams, msToKmh } from './physics/params.js';
+import { DEFAULTS, msToKmh } from './physics/params.js';
 import { createController } from './sim/controller.js';
 import { createScene } from './render/scene.js';
 import { createEffectsManager } from './render/effects.js';
@@ -8,19 +8,20 @@ import { formatIndicators } from './ui/indicators.js';
 import { controlsState } from './ui/controlsState.js';
 import { createHistoryStore } from './history/store.js';
 import { createHistoryPanel } from './ui/historyPanel.js';
+import { createExperimentForm } from './ui/experimentForm.js';
 import { createVisualsPanel } from './ui/visualsPanel.js';
 import { createVisualsStore } from './visuals/store.js';
 import { defaultColorFor } from './visuals/catalog.js';
 import { renderThumbnails } from './render/thumbnails.js';
 
 const $ = (id) => document.getElementById(id);
-const FIELDS = ['x0', 'v0', 'a', 'duration', 'gap'];
 
 const view = createScene($('view'));
 const effects = createEffectsManager(view);
 const charts = createCharts([$('c-x'), $('c-v'), $('c-a')]);
 const hud = createHud($);
 const controller = createController(DEFAULTS.MRU);
+const form = createExperimentForm({ $, controller });
 const visualsStore = createVisualsStore();
 const visuals = createVisualsPanel({
   store: visualsStore,
@@ -62,26 +63,6 @@ createHistoryPanel({
   closeBtn: $('close-history'),
   badge: $('history-badge'),
 });
-
-function fillForm(p) {
-  $('model').value = p.model;
-  FIELDS.forEach((k) => ($(k).value = p[k]));
-  $('row-a').hidden = p.model === 'MRU';
-  document.querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.model === p.model));
-}
-
-function readForm() {
-  const raw = { model: $('model').value };
-  FIELDS.forEach((k) => (raw[k] = $(k).value));
-  return raw;
-}
-
-function applyForm() {
-  const { ok, errors, params } = validateParams(readForm());
-  $('error').textContent = ok ? '' : errors.join('. ');
-  if (ok) controller.configure(params);
-  return ok;
-}
 
 /** "20.00 m/s" -> value + dimmed unit. */
 function setValue(el, text) {
@@ -125,8 +106,7 @@ function renderUI(snap) {
   $('pause').textContent = `${snap.status === 'paused' ? '▶' : '❚❚'} ${cs.pauseLabel}`;
   $('reset').disabled = !cs.reset;
   $('defaults').disabled = !cs.defaults;
-  FIELDS.concat('model').forEach((k) => ($(k).disabled = !cs.configInputs));
-  document.querySelectorAll('.seg-btn').forEach((b) => (b.disabled = !cs.configInputs));
+  form.setEnabled(cs.configInputs);
 
   hud.update(snap);
   charts.update(controller.getHistory());
@@ -155,14 +135,12 @@ function loop(now) {
 
 function setModel(model) {
   const p = DEFAULTS[model];
-  fillForm(p);
-  $('error').textContent = '';
+  form.fill(p);
   controller.configure(p);
 }
 
 document.querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click', () => setModel(b.dataset.model)));
-FIELDS.forEach((k) => $(k).addEventListener('change', applyForm));
-$('start').addEventListener('click', () => applyForm() && controller.start());
+$('start').addEventListener('click', () => form.tryStart() && controller.start());
 $('pause').addEventListener('click', () => (controller.status === 'paused' ? controller.resume() : controller.pause()));
 $('reset').addEventListener('click', () => controller.reset());
 $('defaults').addEventListener('click', () => setModel($('model').value));
@@ -173,7 +151,7 @@ $('color').addEventListener('input', () => {
 $('fx').addEventListener('change', () => effects.setEnabled($('fx').checked));
 window.addEventListener('resize', () => view.resize());
 
-fillForm(DEFAULTS.MRU);
+form.fill(DEFAULTS.MRU);
 renderUI(latest);
 requestAnimationFrame(loop);
 

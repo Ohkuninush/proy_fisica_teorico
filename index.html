@@ -25,6 +25,7 @@
           <button type="button" data-model="MRU" class="seg-btn">MRU</button>
           <button type="button" data-model="MRUV" class="seg-btn">MRUV</button>
         </div>
+        <p id="model-hint" class="model-hint"></p>
         <select id="model" hidden aria-label="Modelo"><option value="MRU">MRU</option><option value="MRUV">MRUV</option></select>
         <label><span>Posición inicial <em>m</em></span><input id="x0" type="number" step="any" /></label>
         <label><span>Velocidad inicial <em>m/s</em></span><input id="v0" type="number" step="any" /></label>
@@ -38,7 +39,14 @@
           </button>
           <label class="switch"><span>Efectos</span><input id="fx" type="checkbox" checked /><i></i></label>
         </div>
-        <p id="error" class="error" role="alert"></p>
+        <div id="feas" class="feas" data-state="ok" role="status" aria-live="polite">
+          <span class="feas-icon" aria-hidden="true"></span>
+          <div class="feas-text">
+            <strong id="feas-title"></strong>
+            <span id="feas-detail"></span>
+            <button type="button" id="feas-fix" class="feas-fix" hidden></button>
+          </div>
+        </div>
         <div class="buttons">
           <button id="start" class="primary">▶ Iniciar</button>
           <button id="pause">❚❚ Pausar</button>
