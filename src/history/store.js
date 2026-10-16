@@ -58,13 +58,15 @@ export function createHistoryStore(storage = defaultStorage(), key = KEY) {
       return () => listeners.delete(fn);
     },
     /** Save a finished experiment snapshot. */
-    add(snap, now = new Date()) {
+    /** `visuals` ({ vehicle, obstacle }) is kept so reports can derive the damage level. */
+    add(snap, now = new Date(), visuals = null) {
       const seq = state.seq + 1;
       const entry = {
         id: `${now.getTime()}-${seq}`,
         savedAt: formatTimestamp(now),
         name: `Prueba ${seq}`,
         comment: '',
+        visuals: visuals ? { vehicle: visuals.vehicle, obstacle: visuals.obstacle } : null,
         params: { ...snap.params },
         result: {
           status: snap.status,

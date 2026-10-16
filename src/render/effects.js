@@ -2,13 +2,14 @@
 // Each effect: { name, update(snap, dt), setActive(on) }. Add new ones via register().
 import * as THREE from 'three';
 import { softDotTexture } from './textures.js';
-import { CAR_LENGTH } from '../physics/params.js';
+import { CAR_LENGTH, msToKmh } from '../physics/params.js';
+import { damageLevel } from '../visuals/damage.js';
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const clamp = THREE.MathUtils.clamp;
 
 /** Pooled point sprites with per-particle size/alpha/colour. */
-function createParticles(view, { max, additive, gravity = 0, drag = 0, grow = 0 }) {
+export function createParticles(view, { max, additive, gravity = 0, drag = 0, grow = 0 }) {
   const pos = new Float32Array(max * 3);
   const col = new Float32Array(max * 3);
   const size = new Float32Array(max);
@@ -148,7 +149,12 @@ function dust(view) {
   };
 }
 
-/** Sparks, smoke, shockwave, flash and camera shake when the impact is registered. */
+/** Crash level (1..5) of the current impact for the selected vehicle; 0 when there is none. */
+function impactLevel(view, snap) {
+  return snap.impact ? damageLevel(msToKmh(Math.abs(snap.impact.v)), view.vehicleKind) : 0;
+}
+
+/** Sparks, smoke, shockwave, flash and camera shake when the impact is registered; scaled by the crash level. */
 function impactBurst(view) {
   const sparks = createParticles(view, { max: 220, additive: true, gravity: -16, drag: 0.6 });
   const smoke = createParticles(view, { max: 70, additive: false, drag: 1.4, grow: 3 });
@@ -161,15 +167,18 @@ function impactBurst(view) {
   let fired = false;
   let age = 99;
   let active = true;
+  let power = 1;
 
   function fire(snap) {
+    const lv = impactLevel(view, snap) || 3;
+    power = [0.35, 0.6, 1, 1.4, 2][lv - 1];
     const o = [snap.obstacleX, 1.3, view.carZ];
-    for (let i = 0; i < 160; i++) {
+    for (let i = 0; i < [30, 80, 160, 220, 220][lv - 1]; i++) {
       const sp = rnd(3, 16);
       const a = rnd(-1.1, 1.1);
       sparks.emit(o, [-Math.cos(a) * sp, rnd(0, 1) * sp * 0.9 + 1, Math.sin(a * 1.7) * sp * 0.7], rnd(0.5, 1.4), rnd(0.18, 0.4), [1, rnd(0.55, 0.9), rnd(0.2, 0.5)]);
     }
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < [8, 16, 30, 40, 40][lv - 1]; i++) {
       smoke.emit([o[0] - 0.4, rnd(0.4, 2.2), o[2] + rnd(-1.6, 1.6)], [rnd(-3, 0.5), rnd(0.5, 2.2), rnd(-1, 1)], rnd(1.2, 2.4), rnd(1, 1.8), [0.32, 0.3, 0.33]);
     }
     ring.position.set(snap.obstacleX - 0.1, 1.4, view.carZ + 2.6);
@@ -193,10 +202,10 @@ function impactBurst(view) {
       age += dt;
       const t = Math.min(age, 4);
       flash.position.set(snap.obstacleX - 1, 2, view.carZ + 2);
-      flash.intensity = age < 0.6 ? 260 * Math.exp(-age * 8) : 0;
+      flash.intensity = age < 0.6 ? 260 * power * Math.exp(-age * 8) : 0;
       ring.material.opacity = age < 0.8 ? 0.9 * (1 - age / 0.8) : 0;
       ring.scale.setScalar(0.4 + age * 11);
-      view.camFx.shake = fired ? Math.exp(-t * 3.2) : 0;
+      view.camFx.shake = fired ? power * Math.exp(-t * 3.2) : 0;
       sparks.update(dt);
       smoke.update(dt);
     },
@@ -211,6 +220,39 @@ function impactBurst(view) {
         smoke.clear();
         flash.intensity = 0;
         view.camFx.shake = 0;
+      }
+    },
+  };
+}
+
+/** Destroys the vehicle and reacts the obstacle by crash level (see crash.js); everything loose fades after 8 s. */
+function crashDamage(view) {
+  let fired = false;
+  let active = true;
+  const restore = () => {
+    view.crash.reset();
+    view.restoreModels(); // fresh, undamaged models
+  };
+  return {
+    name: 'crash-damage',
+    update(snap, dt) {
+      if (active && snap.impact && !fired) {
+        fired = true;
+        const kmh = msToKmh(Math.abs(snap.impact.v));
+        const level = damageLevel(kmh, view.vehicleKind);
+        if (level > 0) view.crash.trigger({ level, speedKmh: kmh });
+      } else if (!snap.impact && fired) {
+        fired = false;
+        restore();
+      }
+      view.crash.update(dt);
+    },
+    setActive(on) {
+      active = on;
+      view.crash.setVisible(on);
+      if (!on && (fired || view.crash.active)) {
+        fired = false;
+        restore();
       }
     },
   };
@@ -269,7 +311,7 @@ function cameraFeel(view) {
   };
 }
 
-export function createEffectsManager(view, factories = [windStreaks, dust, headlightBeams, impactBurst, cameraFeel]) {
+export function createEffectsManager(view, factories = [windStreaks, dust, headlightBeams, impactBurst, crashDamage, cameraFeel]) {
   let enabled = true;
   const effects = factories.map((make) => make(view));
   view.camFx.shake = 0;

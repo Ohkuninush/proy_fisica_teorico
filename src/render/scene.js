@@ -9,6 +9,7 @@ import { CAR_LENGTH } from '../physics/params.js';
 import { createEnvironment, LANE_Z } from './environment.js';
 import { createVehicle } from './vehicles.js';
 import { createObstacle } from './obstacles.js';
+import { createCrash } from './crash.js';
 import { RIGS, DEFAULT_VIEW, blendPose } from './cameraRigs.js';
 
 const TRANSITION_S = 1.0; // seconds to glide between viewpoints
@@ -53,6 +54,8 @@ export function createScene(canvas) {
 
   let vehicle = null;
   let obstacle = null;
+  let vehicleKind = 'sedan';
+  let obstacleKind = 'barrier';
   let color = '#e5484d';
 
   // Post-processing (bloom) is only used while visual effects are on.
@@ -90,6 +93,7 @@ export function createScene(canvas) {
         carRoot.remove(vehicle.group);
         vehicle.dispose();
       }
+      vehicleKind = kind;
       vehicle = createVehicle(kind);
       vehicle.setColor(color);
       carRoot.add(vehicle.group);
@@ -100,8 +104,19 @@ export function createScene(canvas) {
         obstacleRoot.remove(obstacle.group);
         obstacle.dispose();
       }
+      obstacleKind = kind;
       obstacle = createObstacle(kind);
       obstacleRoot.add(obstacle.group);
+    },
+    get vehicleKind() {
+      return vehicleKind;
+    },
+    getVehicle: () => vehicle,
+    getObstacle: () => obstacle,
+    /** Rebuild both models undamaged (used when a crash is reset). */
+    restoreModels() {
+      api.setVehicle(vehicleKind);
+      api.setObstacle(obstacleKind);
     },
     setScenery(id) {
       const t = env.setTheme(id);
@@ -167,7 +182,9 @@ export function createScene(canvas) {
       }
       // cameras that sit in or face the headlights get a much softer glare
       const glare = rig.beams === false;
-      spot.intensity = glare ? 220 : 900;
+      // a crashed vehicle has broken headlights (level 2+): no beam on the obstacle
+      const crashLevel = api.crash?.level ?? 0;
+      spot.intensity = crashLevel >= 2 ? 0 : (glare ? 220 : 900) * (crashLevel === 1 ? 0.5 : 1);
       bloom.strength = glare ? themeBloom * 0.45 : themeBloom;
       camera.up.copy(pose.up);
       camera.position.copy(pose.pos).add(camFx.offset);
@@ -182,6 +199,7 @@ export function createScene(canvas) {
       else renderer.render(scene, camera);
     },
   };
+  api.crash = createCrash(api);
   api.setScenery('city');
   api.setVehicle('sedan');
   api.setObstacle('barrier');

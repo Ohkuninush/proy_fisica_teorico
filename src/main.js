@@ -12,6 +12,7 @@ import { createExperimentForm } from './ui/experimentForm.js';
 import { createExportDialog } from './ui/exportDialog.js';
 import { createVisualsPanel } from './ui/visualsPanel.js';
 import { createVisualsStore } from './visuals/store.js';
+import { damageLevel, levelInfo } from './visuals/damage.js';
 import { defaultColorFor } from './visuals/catalog.js';
 import { renderThumbnails } from './render/thumbnails.js';
 
@@ -106,7 +107,8 @@ function renderUI(snap) {
 
   $('banner').hidden = !snap.impact;
   if (snap.impact) {
-    $('banner-detail').textContent = `t = ${snap.impact.t.toFixed(2)} s · v = ${snap.impact.v.toFixed(1)} m/s (${msToKmh(snap.impact.v).toFixed(1)} km/h)`;
+    const lvl = damageLevel(msToKmh(snap.impact.v), visualsStore.get().vehicle);
+    $('banner-detail').textContent = `t = ${snap.impact.t.toFixed(2)} s · v = ${snap.impact.v.toFixed(1)} m/s (${msToKmh(snap.impact.v).toFixed(1)} km/h) · Daño: nivel ${lvl} (${levelInfo(lvl).name})`;
   }
   if (snap.impact && !wasImpact) {
     const stage = $('stage');
@@ -134,7 +136,7 @@ controller.subscribe((snap) => {
   latest = snap;
   renderUI(snap);
   // Auto-save once when a run ends (finished or collided).
-  if (prevStatus === 'running' && (snap.status === 'finished' || snap.status === 'collided')) history.add(snap);
+  if (prevStatus === 'running' && (snap.status === 'finished' || snap.status === 'collided')) history.add(snap, new Date(), visualsStore.get());
   prevStatus = snap.status;
 });
 

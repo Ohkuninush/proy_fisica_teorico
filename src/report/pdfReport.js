@@ -4,6 +4,8 @@ import { buildSeries } from './series.js';
 import { renderChartPng, CHART_W, CHART_H, SERIES_STYLE } from './chartImages.js';
 import { CAR_LENGTH, msToKmh } from '../physics/params.js';
 import { obstacleX } from '../physics/collision.js';
+import { damageLevel, levelInfo } from '../visuals/damage.js';
+import { VEHICLES, OBSTACLES } from '../visuals/catalog.js';
 
 const PAGE_W = 210;
 const PAGE_H = 297;
@@ -31,6 +33,24 @@ const STATUS = {
 };
 
 const f = (n, d = 2) => Number(n).toFixed(d);
+
+/** Colour per damage level (green -> pink), shared by the scale bar and the label. */
+const DAMAGE_COLORS = [[93, 161, 15], [160, 168, 20], [224, 138, 0], [222, 82, 40], [214, 36, 110]];
+
+/** Damage of a saved run: derived from its impact speed and vehicle (sedan when the vehicle was not recorded). */
+export function damageOf(entry) {
+  const hit = entry.result?.impact;
+  if (!hit) return null;
+  const vehicleId = entry.visuals?.vehicle ?? 'sedan';
+  const level = damageLevel(msToKmh(Math.abs(hit.v)), vehicleId);
+  return {
+    level,
+    name: levelInfo(level).name,
+    vehicle: VEHICLES.find((v) => v.id === vehicleId)?.name ?? 'Carro',
+    obstacle: OBSTACLES.find((o) => o.id === entry.visuals?.obstacle)?.name ?? null,
+    assumed: !entry.visuals?.vehicle,
+  };
+}
 const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
 
 /** Replace anything outside Latin-1 (standard PDF fonts) so user text never renders as garbage. */
@@ -207,19 +227,21 @@ function summaryPages(doc, entries, dateText) {
     e.savedAt,
     e.params.model,
     STATUS[e.result.status]?.label ?? e.result.status,
+    damageOf(e) ? `Nivel ${damageOf(e).level}` : '-',
     f(e.result.t),
     f(msToKmh(e.result.v), 1),
     f(e.result.traveled),
   ]);
   const cols = [
-    { h: '#', w: 8, a: 'left' },
-    { h: 'Prueba', w: 42, a: 'left' },
-    { h: 'Fecha y hora', w: 35, a: 'left' },
-    { h: 'Modelo', w: 16, a: 'left' },
-    { h: 'Estado', w: 24, a: 'left' },
-    { h: 't (s)', w: 15, a: 'right' },
-    { h: 'v (km/h)', w: 20, a: 'right' },
-    { h: 'Recorrido (m)', w: 26, a: 'right' },
+    { h: '#', w: 7, a: 'left' },
+    { h: 'Prueba', w: 36, a: 'left' },
+    { h: 'Fecha y hora', w: 34, a: 'left' },
+    { h: 'Modelo', w: 14, a: 'left' },
+    { h: 'Estado', w: 22, a: 'left' },
+    { h: 'Daño', w: 16, a: 'left' },
+    { h: 't (s)', w: 13, a: 'right' },
+    { h: 'v (km/h)', w: 17, a: 'right' },
+    { h: 'Recorrido (m)', w: 24, a: 'right' },
   ];
   const scale = CW / cols.reduce((s, c) => s + c.w, 0);
   const rowsPerPage = 27;
@@ -305,7 +327,9 @@ function resultsPage(doc, entry, dateText) {
   // outcome banner
   const hit = r.impact;
   const tone = hit ? C.pink : C.violet;
-  accentCard(doc, M, y, CW, 13, 2.2, tone, mix(tone, C.white, 0.9), mix(tone, C.white, 0.5));
+  const dmg = damageOf(entry);
+  const bannerH = dmg ? 20 : 13;
+  accentCard(doc, M, y, CW, bannerH, 2.2, tone, mix(tone, C.white, 0.9), mix(tone, C.white, 0.5));
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
   setInk(doc, tone);
@@ -320,23 +344,49 @@ function resultsPage(doc, entry, dateText) {
     M + 6,
     y + 10,
   );
-  y += 13 + 10;
+  if (dmg) {
+    // damage scale: five segments, filled up to the level reached
+    const sy = y + 15.2;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    setInk(doc, C.ink);
+    doc.text('Nivel de daño', M + 6, sy + 2.5);
+    const sx = M + 31;
+    for (let i = 0; i < 5; i++) {
+      setFill(doc, i < dmg.level ? DAMAGE_COLORS[i] : mix(C.line, C.white, 0.2));
+      doc.roundedRect(sx + i * 8.6, sy, 7.6, 3.4, 1.2, 1.2, 'F');
+    }
+    const col = DAMAGE_COLORS[dmg.level - 1];
+    setInk(doc, col);
+    doc.setFontSize(8.6);
+    doc.text(`${dmg.level} de 5 · ${dmg.name}`, sx + 5 * 8.6 + 3, sy + 2.7);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.8);
+    setInk(doc, C.muted);
+    const who = `${dmg.vehicle}${dmg.assumed ? ' (supuesto)' : ''}${dmg.obstacle ? ' contra ' + dmg.obstacle : ''}`;
+    doc.text(toLatin1(who), M + CW - 3, sy + 2.7, { align: 'right' });
+  }
+  y += bannerH + 10;
 
   // initial conditions (two columns of label/value rows)
   y = sectionTitle(doc, 'Condiciones iniciales', y);
   y += 3;
   const wall = obstacleX(p);
+  const vehicleName = VEHICLES.find((v) => v.id === entry.visuals?.vehicle)?.name ?? 'No registrado';
+  const obstacleName = OBSTACLES.find((o) => o.id === entry.visuals?.obstacle)?.name ?? 'No registrado';
   const left = [
     ['Modelo físico', p.model === 'MRU' ? 'MRU (velocidad constante)' : 'MRUV (aceleración constante)'],
     ['Posición inicial (x0)', `${f(p.x0)} m`],
     ['Velocidad inicial (v0)', `${f(p.v0)} m/s  (${f(msToKmh(p.v0), 1)} km/h)`],
     ['Aceleración (a)', p.model === 'MRU' ? '0 m/s²  (constante)' : `${f(p.a)} m/s²`],
+    ['Vehículo', vehicleName],
   ];
   const right = [
     ['Duración máxima', `${f(p.duration, 1)} s`],
     ['Distancia al obstáculo', `${f(p.gap)} m`],
     ['Cara del obstáculo', `x = ${f(wall)} m`],
     ['Largo del vehículo', `${f(CAR_LENGTH, 1)} m`],
+    ['Obstáculo', obstacleName],
   ];
   const colW = (CW - 6) / 2;
   [left, right].forEach((col, ci) => {
@@ -356,7 +406,7 @@ function resultsPage(doc, entry, dateText) {
       doc.text(toLatin1(row[1]), x + colW - 2.5, ry + 5.4, { align: 'right' });
     });
   });
-  y += 4 * 8 + 9;
+  y += 5 * 8 + 9;
 
   // equations
   y = sectionTitle(doc, 'Ecuaciones del modelo', y);
