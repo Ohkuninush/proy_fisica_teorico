@@ -1,14 +1,19 @@
-// Static-looking world that recycles a small pool of meshes around the camera,
-// so long physical distances never require long geometry.
+// World that recycles a small pool of meshes around the camera, so long physical distances
+// never require long geometry. The scenery (sky, backdrop layers, ground) is swappable at runtime.
 import * as THREE from 'three';
-import { asphaltTexture, facadeTexture, softDotTexture } from './textures.js';
+import { asphaltTexture, softDotTexture } from './textures.js';
+import { THEMES } from './themes.js';
+import { hash } from './geometries.js';
 
 export const ROAD_HALF_WIDTH = 6;
 export const LANE_Z = 2.6;
 
-const hash = (n) => {
-  const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
-  return s - Math.floor(s);
+const disposeObject = (obj) => {
+  obj.traverse((o) => {
+    o.geometry?.dispose?.();
+    const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+    mats.forEach((m) => m.dispose());
+  });
 };
 
 function createSky(scene) {
@@ -17,9 +22,9 @@ function createSky(scene) {
     depthWrite: false,
     fog: false,
     uniforms: {
-      top: { value: new THREE.Color('#070a24') },
-      mid: { value: new THREE.Color('#5b2a86') },
-      bottom: { value: new THREE.Color('#ff7a45') },
+      top: { value: new THREE.Color() },
+      mid: { value: new THREE.Color() },
+      bottom: { value: new THREE.Color() },
     },
     vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);} ',
     fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 bottom; varying vec3 vP;
@@ -32,25 +37,13 @@ function createSky(scene) {
         #include <colorspace_fragment>
       }`,
   });
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(320, 32, 20), mat);
-  sky.renderOrder = -10;
-  scene.add(sky);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(320, 32, 20), mat);
+  dome.renderOrder = -10;
 
-  // Sun disc
-  const sun = new THREE.Mesh(
-    new THREE.CircleGeometry(26, 48),
-    new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 0.8, 0.45), fog: false, toneMapped: false }),
-  );
-  sun.position.set(70, 34, -290);
-  scene.add(sun);
-  const halo = new THREE.Sprite(
-    new THREE.SpriteMaterial({ map: softDotTexture(), color: 0xff8a4c, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0.7 }),
-  );
-  halo.scale.set(260, 260, 1);
-  halo.position.copy(sun.position).add(new THREE.Vector3(0, 0, 2));
-  scene.add(halo);
+  const sunMat = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false, toneMapped: false });
+  const sun = new THREE.Mesh(new THREE.CircleGeometry(1, 48), sunMat);
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: softDotTexture(), blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
 
-  // Stars
   const n = 260;
   const pos = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) {
@@ -59,34 +52,61 @@ function createSky(scene) {
     const r = Math.sqrt(1 - y * y);
     pos.set([Math.cos(a) * r * 300, y * 300, Math.sin(a) * r * 300], i * 3);
   }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const stars = new THREE.Points(g, new THREE.PointsMaterial({ size: 1.6, color: 0xcfd8ff, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.8 }));
-  scene.add(stars);
+  const sg = new THREE.BufferGeometry();
+  sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const stars = new THREE.Points(sg, new THREE.PointsMaterial({ size: 1.6, color: 0xcfd8ff, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.8 }));
+
+  const cloudTex = softDotTexture();
+  const clouds = Array.from({ length: 14 }, (_, i) => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false, fog: false }));
+    s.scale.set(90 + (i % 3) * 30, 30 + (i % 2) * 12, 1);
+    s.userData = { seed: i, y: 55 + (i % 4) * 17, z: -(150 + (i % 3) * 45) };
+    return s;
+  });
+  const cloudGroup = new THREE.Group();
+  cloudGroup.add(...clouds);
 
   const group = new THREE.Group();
-  group.add(sky, sun, halo, stars);
-  scene.remove(sky, sun, halo, stars);
+  group.add(dome, sun, halo, stars, cloudGroup);
   scene.add(group);
-  return group;
+
+  return {
+    group,
+    apply(t) {
+      mat.uniforms.top.value.set(t.sky.top);
+      mat.uniforms.mid.value.set(t.sky.mid);
+      mat.uniforms.bottom.value.set(t.sky.bottom);
+      sun.position.set(...t.disc.pos);
+      sun.scale.setScalar(t.disc.r);
+      sunMat.color.setRGB(...t.disc.color);
+      halo.position.set(t.disc.pos[0], t.disc.pos[1], t.disc.pos[2] + 2);
+      halo.scale.set(t.disc.r * 10, t.disc.r * 10, 1);
+      halo.material.color.set(t.disc.halo);
+      halo.material.opacity = t.disc.haloOpacity;
+      stars.visible = !!t.stars;
+      cloudGroup.visible = !!t.clouds;
+    },
+    update(cx, time) {
+      clouds.forEach((c) => {
+        const { seed, y, z } = c.userData;
+        const x = ((((seed * 97 - cx * 0.03 + time * 1.2) % 700) + 700) % 700) - 350;
+        c.position.set(x, y, z);
+      });
+    },
+  };
 }
 
-function createRoad(scene, shadowReceive = true) {
+function createRoad(scene) {
   const group = new THREE.Group();
   const tex = asphaltTexture();
   tex.repeat.set(60, 2);
-  const road = new THREE.Mesh(
-    new THREE.PlaneGeometry(480, ROAD_HALF_WIDTH * 2),
-    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85, metalness: 0.05 }),
-  );
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(480, ROAD_HALF_WIDTH * 2), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85, metalness: 0.05 }));
   road.rotation.x = -Math.PI / 2;
-  road.receiveShadow = shadowReceive;
+  road.receiveShadow = true;
   group.add(road);
 
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(480, 220),
-    new THREE.MeshStandardMaterial({ color: 0x0d101c, roughness: 1 }),
-  );
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0x0d101c, roughness: 1 });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(480, 220), groundMat);
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -0.03;
   ground.receiveShadow = true;
@@ -107,48 +127,7 @@ function createRoad(scene, shadowReceive = true) {
     group.add(curb);
   }
   scene.add(group);
-  return { group, tex };
-}
-
-function createBuildings(scene) {
-  const tex = facadeTexture(3);
-  const mats = [0x1a2036, 0x232a45, 0x2d2447].map(
-    (c) => new THREE.MeshStandardMaterial({ color: c, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.55, map: null, roughness: 0.9 }),
-  );
-  const heights = [10, 16, 24, 34, 46];
-  const geos = heights.map((h) => {
-    const w = 9 + (h % 3) * 2;
-    const geo = new THREE.BoxGeometry(w, h, 8);
-    const uv = geo.attributes.uv;
-    for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * w) / 7, (uv.getY(i) * h) / 14);
-    return geo;
-  });
-  mats.forEach((m) => m.emissiveMap && (m.emissiveMap = tex));
-  const layers = [
-    { z: -16, spacing: 19, slots: 16, seed: 1, tint: 0 },
-    { z: -34, spacing: 24, slots: 14, seed: 7, tint: 1 },
-    { z: -60, spacing: 30, slots: 12, seed: 13, tint: 2 },
-  ];
-  const pool = layers.map((L) =>
-    Array.from({ length: L.slots }, () => {
-      const m = new THREE.Mesh(geos[0], mats[L.tint]);
-      scene.add(m);
-      return m;
-    }),
-  );
-  return {
-    update(cx) {
-      layers.forEach((L, li) => {
-        const k0 = Math.floor(cx / L.spacing) - L.slots / 2;
-        pool[li].forEach((m, i) => {
-          const k = k0 + i;
-          const type = Math.floor(hash(k * 3.1 + L.seed) * geos.length);
-          m.geometry = geos[type];
-          m.position.set(k * L.spacing + (hash(k + L.seed * 5) - 0.5) * 6, heights[type] / 2, L.z - hash(k * 7.7) * 6);
-        });
-      });
-    },
-  };
+  return { group, tex, groundMat };
 }
 
 function createLamps(scene) {
@@ -157,6 +136,7 @@ function createLamps(scene) {
   const poleMat = new THREE.MeshStandardMaterial({ color: 0x20253a, metalness: 0.6, roughness: 0.5 });
   const bulbMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.7, 0.9), toneMapped: false });
   const glowTex = softDotTexture();
+  const root = new THREE.Group();
   const lamps = Array.from({ length: slots }, () => {
     const g = new THREE.Group();
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 7, 8), poleMat);
@@ -168,18 +148,17 @@ function createLamps(scene) {
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffb35a, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.8 }));
     halo.scale.set(7, 7, 1);
     halo.position.set(1.5, 6.9, 0.2);
-    const pool = new THREE.Mesh(
-      new THREE.PlaneGeometry(10, 5),
-      new THREE.MeshBasicMaterial({ map: glowTex, color: 0xffa550, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.22 }),
-    );
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(10, 5), new THREE.MeshBasicMaterial({ map: glowTex, color: 0xffa550, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.22 }));
     pool.rotation.x = -Math.PI / 2;
     pool.position.set(1.5, 0.02, 4.8);
     g.add(pole, arm, bulb, halo, pool);
     g.position.z = -ROAD_HALF_WIDTH - 1.1;
-    scene.add(g);
+    root.add(g);
     return g;
   });
+  scene.add(root);
   return {
+    root,
     update(cx) {
       const k0 = Math.floor(cx / spacing) - slots / 2;
       lamps.forEach((l, i) => (l.position.x = (k0 + i) * spacing));
@@ -187,11 +166,53 @@ function createLamps(scene) {
   };
 }
 
+function createSea(scene) {
+  const group = new THREE.Group();
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(480, 260), new THREE.MeshStandardMaterial({ color: 0x1fb5d4, emissive: 0x0a4a6a, roughness: 0.15, metalness: 0.2 }));
+  sea.rotation.x = -Math.PI / 2;
+  sea.position.set(0, -0.01, -148);
+  const foamMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+  [[1.4, -18.3], [0.6, -20.5]].forEach(([w, z]) => {
+    const foam = new THREE.Mesh(new THREE.PlaneGeometry(480, w), foamMat);
+    foam.rotation.x = -Math.PI / 2;
+    foam.position.set(0, 0.0, z);
+    group.add(foam);
+  });
+  group.add(sea);
+  scene.add(group);
+  return group;
+}
+
+function createLayer(scene, def) {
+  const meshes = Array.from({ length: def.slots }, () => {
+    const m = new THREE.Mesh(def.geos[0], def.mat);
+    m.castShadow = false;
+    scene.add(m);
+    return m;
+  });
+  const [s0, s1] = def.scale ?? [1, 1];
+  return {
+    def,
+    meshes,
+    update(cx) {
+      const k0 = Math.floor(cx / def.spacing) - def.slots / 2;
+      meshes.forEach((m, i) => {
+        const k = k0 + i;
+        const r = (n) => hash(k * n + def.seed * 7.3);
+        m.visible = !(def.skip && r(1.7) < def.skip);
+        if (!m.visible) return;
+        m.geometry = def.geos[Math.floor(r(3.1) * def.geos.length)];
+        m.position.set(k * def.spacing + (r(5.3) - 0.5) * def.jitter, 0, def.z - r(7.7) * def.jitter * 0.6);
+        m.scale.setScalar(s0 + r(11.3) * (s1 - s0));
+        m.rotation.y = def.yaw ? r(13.1) * Math.PI * 2 : 0;
+      });
+    },
+  };
+}
+
 export function createEnvironment(scene) {
   const sky = createSky(scene);
   const road = createRoad(scene);
-  const buildings = createBuildings(scene);
-  const lamps = createLamps(scene);
 
   const dashGeo = new THREE.PlaneGeometry(2.6, 0.18);
   const dashMat = new THREE.MeshBasicMaterial({ color: 0xe9e9e9 });
@@ -205,15 +226,57 @@ export function createEnvironment(scene) {
     return d;
   });
 
+  let layers = [];
+  let lamps = null;
+  let sea = null;
+
+  function clearTheme() {
+    layers.forEach((l) => {
+      l.meshes.forEach((m) => scene.remove(m));
+      const mats = new Set([l.def.mat]);
+      mats.forEach((m) => m.dispose());
+      l.def.geos.forEach((g) => g.dispose());
+    });
+    layers = [];
+    if (lamps) {
+      scene.remove(lamps.root);
+      lamps.root.traverse((o) => {
+        o.geometry?.dispose?.();
+        o.material?.dispose?.();
+      });
+      lamps = null;
+    }
+    if (sea) {
+      scene.remove(sea);
+      disposeObject(sea);
+      sea = null;
+    }
+  }
+
   return {
-    update(cx, cameraPos) {
-      sky.position.copy(cameraPos);
+    /** Build the scenery for `id` and return its theme (lighting hints for the scene). */
+    setTheme(id) {
+      const t = THEMES[id] ?? THEMES.city;
+      clearTheme();
+      sky.apply(t);
+      road.groundMat.color.set(t.ground);
+      // layers share geometries across slots, so build each layer's defs once
+      const defs = t.layers();
+      layers = defs.map((d) => createLayer(scene, d));
+      if (t.lamps) lamps = createLamps(scene);
+      if (t.sea) sea = createSea(scene);
+      return t;
+    },
+    update(cx, cameraPos, time) {
+      sky.group.position.copy(cameraPos);
+      sky.update(cx, time);
       road.group.position.x = cx;
+      if (sea) sea.position.x = cx;
       road.tex.offset.x = ((cx / 8) % 1 + 1) % 1; // keeps asphalt grain fixed in the world
       const base = Math.floor(cx / dashSpacing) * dashSpacing;
       dashes.forEach((d, i) => (d.position.x = base + (i - dashCount / 2) * dashSpacing));
-      buildings.update(cx);
-      lamps.update(cx);
+      layers.forEach((l) => l.update(cx));
+      lamps?.update(cx);
     },
   };
 }

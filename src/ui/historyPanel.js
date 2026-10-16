@@ -21,6 +21,7 @@ export function createHistoryPanel({ store, drawer, backdrop, list, count, openB
     lastFocus = document.activeElement;
     drawer.classList.add('open');
     backdrop.classList.add('open');
+    document.dispatchEvent(new CustomEvent('physicslab:drawer', { detail: 'history' }));
     drawer.setAttribute('aria-hidden', 'false');
     closeBtn.focus();
   }
@@ -144,6 +145,7 @@ export function createHistoryPanel({ store, drawer, backdrop, list, count, openB
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && drawer.classList.contains('open')) close();
   });
+  document.addEventListener('physicslab:drawer', (e) => e.detail !== 'history' && drawer.classList.contains('open') && close());
   store.subscribe(render);
   render(store.list());
 

@@ -8,6 +8,10 @@ import { formatIndicators } from './ui/indicators.js';
 import { controlsState } from './ui/controlsState.js';
 import { createHistoryStore } from './history/store.js';
 import { createHistoryPanel } from './ui/historyPanel.js';
+import { createVisualsPanel } from './ui/visualsPanel.js';
+import { createVisualsStore } from './visuals/store.js';
+import { defaultColorFor } from './visuals/catalog.js';
+import { renderThumbnails } from './render/thumbnails.js';
 
 const $ = (id) => document.getElementById(id);
 const FIELDS = ['x0', 'v0', 'a', 'duration', 'gap'];
@@ -17,6 +21,36 @@ const effects = createEffectsManager(view);
 const charts = createCharts([$('c-x'), $('c-v'), $('c-a')]);
 const hud = createHud($);
 const controller = createController(DEFAULTS.MRU);
+const visualsStore = createVisualsStore();
+const visuals = createVisualsPanel({
+  store: visualsStore,
+  drawer: $('visuals-drawer'),
+  backdrop: $('visuals-backdrop'),
+  body: $('visuals-body'),
+  openBtn: $('open-visuals'),
+  closeBtn: $('close-visuals'),
+  getThumbs: renderThumbnails,
+  onChange(key, value) {
+    if (key === 'scenery') view.setScenery(value);
+    else if (key === 'obstacle') view.setObstacle(value);
+    else if (key === 'vehicle') {
+      const c = defaultColorFor(value); // each vehicle starts with its own colour; the picker can override it
+      view.setVehicle(value);
+      view.setCarColor(c);
+      visuals.setColor(c);
+      visualsStore.set({ vehicle: value, color: c });
+      return;
+    }
+    visualsStore.set({ [key]: value });
+  },
+});
+{
+  const v = visualsStore.get();
+  view.setScenery(v.scenery);
+  view.setVehicle(v.vehicle);
+  view.setObstacle(v.obstacle);
+  view.setCarColor(v.color);
+}
 const history = createHistoryStore();
 createHistoryPanel({
   store: history,
@@ -132,12 +166,14 @@ $('start').addEventListener('click', () => applyForm() && controller.start());
 $('pause').addEventListener('click', () => (controller.status === 'paused' ? controller.resume() : controller.pause()));
 $('reset').addEventListener('click', () => controller.reset());
 $('defaults').addEventListener('click', () => setModel($('model').value));
-$('color').addEventListener('input', () => view.setCarColor($('color').value));
+$('color').addEventListener('input', () => {
+  view.setCarColor($('color').value);
+  visualsStore.set({ color: $('color').value });
+});
 $('fx').addEventListener('change', () => effects.setEnabled($('fx').checked));
 window.addEventListener('resize', () => view.resize());
 
 fillForm(DEFAULTS.MRU);
-view.setCarColor($('color').value);
 renderUI(latest);
 requestAnimationFrame(loop);
 

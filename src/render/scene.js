@@ -7,7 +7,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CAR_LENGTH } from '../physics/params.js';
 import { createEnvironment, LANE_Z } from './environment.js';
-import { createCar, createObstacle } from './carModel.js';
+import { createVehicle } from './vehicles.js';
+import { createObstacle } from './obstacles.js';
 
 const BASE_FOV = 38;
 
@@ -27,20 +28,31 @@ export function createScene(canvas) {
 
   const camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.1, 700);
 
-  scene.add(new THREE.HemisphereLight(0x8a7bd8, 0x1a1020, 0.7));
+  const hemi = new THREE.HemisphereLight(0x8a7bd8, 0x1a1020, 0.7);
   const sun = new THREE.DirectionalLight(0xffb27a, 2.2);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 12, bottom: -12, near: 1, far: 70 });
   sun.shadow.bias = -0.0004;
-  scene.add(sun, sun.target);
+  scene.add(hemi, sun, sun.target);
 
   const env = createEnvironment(scene);
-  const carModel = createCar();
-  const obstacleModel = createObstacle();
-  scene.add(carModel.group, obstacleModel.group);
-  carModel.group.position.z = LANE_Z;
-  obstacleModel.group.position.z = LANE_Z;
+
+  // Swappable models live inside persistent roots (effects attach to carRoot).
+  const carRoot = new THREE.Group();
+  carRoot.position.z = LANE_Z;
+  const obstacleRoot = new THREE.Group();
+  obstacleRoot.position.z = LANE_Z;
+  scene.add(carRoot, obstacleRoot);
+
+  const spot = new THREE.SpotLight(0xfff0d0, 900, 55, 0.5, 0.7, 1.6);
+  spot.position.set(CAR_LENGTH, 0.75, 0);
+  spot.target.position.set(CAR_LENGTH + 10, 0.2, 0);
+  carRoot.add(spot, spot.target);
+
+  let vehicle = null;
+  let obstacle = null;
+  let color = '#e5484d';
 
   // Post-processing (bloom) is only used while visual effects are on.
   const composer = new EffectComposer(renderer);
@@ -53,16 +65,54 @@ export function createScene(canvas) {
   // Effects write here; applied at render time on top of the fixed side camera.
   const camFx = { fovAdd: 0, offset: new THREE.Vector3() };
   const base = { pos: new THREE.Vector3(), look: new THREE.Vector3() };
+  let cx = 0;
 
   const api = {
     scene,
     camera,
     renderer,
     camFx,
-    car: carModel.group,
-    obstacle: obstacleModel.group,
+    car: carRoot,
     carZ: LANE_Z,
-    setCarColor: (hex) => carModel.setColor(hex),
+    vehicleMeta: { rearWheelX: 0.85, trackZ: 0.9 },
+    beam: 0.18, // headlight beam opacity (daylight scenes use less)
+    setCarColor(hex) {
+      color = hex;
+      vehicle?.setColor(hex);
+    },
+    setVehicle(kind) {
+      if (vehicle) {
+        carRoot.remove(vehicle.group);
+        vehicle.dispose();
+      }
+      vehicle = createVehicle(kind);
+      vehicle.setColor(color);
+      carRoot.add(vehicle.group);
+      api.vehicleMeta = vehicle.meta;
+    },
+    setObstacle(kind) {
+      if (obstacle) {
+        obstacleRoot.remove(obstacle.group);
+        obstacle.dispose();
+      }
+      obstacle = createObstacle(kind);
+      obstacleRoot.add(obstacle.group);
+    },
+    setScenery(id) {
+      const t = env.setTheme(id);
+      scene.fog.color.set(t.fog[0]);
+      scene.fog.near = t.fog[1];
+      scene.fog.far = t.fog[2];
+      hemi.color.set(t.hemi[0]);
+      hemi.groundColor.set(t.hemi[1]);
+      hemi.intensity = t.hemi[2];
+      sun.color.set(t.sun.color);
+      sun.intensity = t.sun.intensity;
+      renderer.toneMappingExposure = t.exposure;
+      bloom.strength = t.bloom[0];
+      bloom.threshold = t.bloom[1];
+      api.beam = t.beam;
+    },
     setBloom(on) {
       bloomOn = on;
     },
@@ -79,22 +129,22 @@ export function createScene(canvas) {
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
     },
-    /** Map physical snapshot -> poses. Car x is the rear; obstacle x is its face. */
+    /** Map physical snapshot -> poses. Car x is the rear; obstacle x is the face that gets hit. */
     update(snap) {
-      carModel.group.position.x = snap.x;
-      carModel.pose(snap.x, snap.a);
-      obstacleModel.group.position.x = snap.obstacleX + 0.5;
-      const cx = snap.x + CAR_LENGTH / 2;
+      carRoot.position.x = snap.x;
+      vehicle?.pose(snap.x, snap.a);
+      obstacleRoot.position.x = snap.obstacleX;
+      cx = snap.x + CAR_LENGTH / 2;
       base.pos.set(cx + 3.5, 3.4, 19);
       base.look.set(cx + 3.5, 1.3, LANE_Z * 0.6);
       sun.position.set(cx - 14, 24, 14);
       sun.target.position.set(cx, 0, 0);
-      env.update(cx, camera.position);
     },
     render(time) {
-      obstacleModel.animate(time);
+      obstacle?.animate(time);
       camera.position.copy(base.pos).add(camFx.offset);
       camera.lookAt(base.look);
+      env.update(cx, camera.position, time);
       const fov = BASE_FOV + camFx.fovAdd;
       if (Math.abs(camera.fov - fov) > 1e-3) {
         camera.fov = fov;
@@ -104,6 +154,9 @@ export function createScene(canvas) {
       else renderer.render(scene, camera);
     },
   };
+  api.setScenery('city');
+  api.setVehicle('sedan');
+  api.setObstacle('barrier');
   api.resize();
   return api;
 }

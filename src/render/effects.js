@@ -132,8 +132,9 @@ function dust(view) {
         const dir = Math.sign(snap.v) || 1;
         while (acc >= 1) {
           acc -= 1;
-          const wz = view.carZ + (Math.random() < 0.5 ? -0.9 : 0.9);
-          const wx = snap.x + 0.85;
+          const { rearWheelX, trackZ } = view.vehicleMeta;
+          const wz = view.carZ + (Math.random() < 0.5 ? -trackZ : trackZ);
+          const wx = snap.x + rearWheelX;
           ps.emit([wx, 0.1, wz], [-dir * rnd(0.5, 2.2), rnd(0.4, 1.4), rnd(-0.3, 0.3)], rnd(0.7, 1.4), rnd(0.5, 0.9), [0.62, 0.58, 0.55]);
         }
       }
@@ -233,7 +234,9 @@ function headlightBeams(view) {
   view.car.add(cone);
   return {
     name: 'headlight-beams',
-    update() {},
+    update() {
+      mat.uniforms.uOpacity.value = view.beam;
+    },
     setActive(on) {
       cone.visible = on;
     },
