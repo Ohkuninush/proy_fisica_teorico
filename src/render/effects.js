@@ -105,6 +105,7 @@ function windStreaks(view) {
   return {
     name: 'wind-streaks',
     update(snap) {
+      group.visible = view.rig.streaks;
       const speed = Math.abs(snap.v);
       mat.opacity = clamp((speed - 4) / 30, 0, 0.55);
       streaks.forEach((m) => {
@@ -235,7 +236,7 @@ function headlightBeams(view) {
   return {
     name: 'headlight-beams',
     update() {
-      mat.uniforms.uOpacity.value = view.beam;
+      mat.uniforms.uOpacity.value = view.rig.beams === false ? 0 : view.beam;
     },
     setActive(on) {
       cone.visible = on;

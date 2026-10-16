@@ -59,19 +59,19 @@ const SPECS = {
     depth: 1.7, wheelR: 0.38, archR: 0.47, wheelXs: [0.85, 3.4],
     pts: [[0.0, 0.38], [0.0, 0.8], [0.1, 0.97, 0.6, 1.0], [1.35, 1.03], [1.55, 1.08, 1.8, 1.42], [1.95, 1.56, 2.3, 1.56], [2.75, 1.54], [3.05, 1.5, 3.35, 1.05], [3.85, 0.95], [4.15, 0.9, 4.2, 0.7], [4.2, 0.5], [4.17, 0.38, 4.05, 0.38]],
     glass: [[1.62, 2.52, 1.08, 1.5, 0.3, 0.05], [2.62, 3.22, 1.08, 1.5, 0.06, 0.4]],
-    head: 0.72, tail: 0.84,
+    head: 0.72, tail: 0.84, eye: [3.45, 1.32],
   },
   sport: {
     depth: 1.85, wheelR: 0.36, archR: 0.45, wheelXs: [0.85, 3.3],
     pts: [[0.0, 0.36], [0.0, 0.62], [0.1, 0.82, 0.7, 0.88], [1.5, 0.9], [1.9, 1.0, 2.15, 1.2], [2.35, 1.32, 2.7, 1.32], [2.95, 1.3], [3.3, 1.2, 3.6, 0.9], [4.0, 0.78], [4.18, 0.74, 4.2, 0.6], [4.2, 0.5], [4.17, 0.36, 4.05, 0.36]],
     glass: [[2.15, 3.2, 0.93, 1.28, 0.25, 0.32]],
-    head: 0.66, tail: 0.76, spoiler: true,
+    head: 0.66, tail: 0.76, spoiler: true, eye: [3.3, 1.12],
   },
   pickup: {
     depth: 1.85, wheelR: 0.46, archR: 0.56, wheelXs: [0.95, 3.35],
     pts: [[0.0, 0.46], [0.0, 1.1], [1.9, 1.12], [1.95, 1.62], [2.0, 1.74, 2.3, 1.76], [2.95, 1.74], [3.2, 1.68, 3.35, 1.2], [3.9, 1.1], [4.18, 1.08, 4.2, 0.85], [4.2, 0.6], [4.17, 0.46, 4.05, 0.46]],
     glass: [[2.05, 3.22, 1.16, 1.64, 0.05, 0.2]],
-    head: 0.9, tail: 1.0, bed: true,
+    head: 0.9, tail: 1.0, bed: true, eye: [3.55, 1.55],
   },
 };
 
@@ -146,7 +146,7 @@ function buildExtruded(spec) {
       const p = THREE.MathUtils.clamp(a * 0.0025, -0.03, 0.03);
       pitchTargets.forEach((m) => (m.rotation.z = p));
     },
-    meta: { rearWheelX: xs[0], trackZ: wz },
+    meta: { rearWheelX: xs[0], trackZ: wz, eye: spec.eye },
   };
 }
 
@@ -224,7 +224,7 @@ function buildMoto() {
       wheels.forEach((w) => (w.rotation.z = ang));
       root.rotation.z = THREE.MathUtils.clamp(a * 0.003, -0.05, 0.05);
     },
-    meta: { rearWheelX: rear, trackZ: 0.1 },
+    meta: { rearWheelX: rear, trackZ: 0.1, eye: [3.65, 2.2] },
   };
 }
 
@@ -315,7 +315,7 @@ function buildTank() {
       roadWheels.forEach((w) => (w.rotation.z = -x / 0.26));
       treadTex.offset.x = (((x * 5) / 1) % 1 + 1) % 1;
     },
-    meta: { rearWheelX: 0.5, trackZ: 0.95 },
+    meta: { rearWheelX: 0.5, trackZ: 0.95, eye: [3.0, 2.05] },
     keep: mantlet,
   };
 }

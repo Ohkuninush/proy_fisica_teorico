@@ -1,5 +1,15 @@
 // Selectable visual options. Pure data: ids are the contract with the render modules.
 
+export const VIEWS = [
+  { id: 'side', name: 'Lateral', emoji: '🎥', desc: 'Cámara fija de costado', swatch: 'linear-gradient(135deg,#1d2b53,#4a6fa5)' },
+  { id: 'cinematic', name: 'Cinematográfica', emoji: '🎬', desc: 'Travelling bajo y toma del impacto', swatch: 'linear-gradient(135deg,#3b1d4a,#e0457b)' },
+  { id: 'aerial', name: 'Aérea', emoji: '🚁', desc: 'Desde lo alto, en diagonal', swatch: 'linear-gradient(135deg,#0f3b57,#4cc9f0)' },
+  { id: 'top', name: 'Cenital', emoji: '🛰️', desc: 'Directo desde arriba', swatch: 'linear-gradient(135deg,#14213d,#7a8cff)' },
+  { id: 'chase', name: 'Persecución', emoji: '🏎️', desc: 'Detrás del vehículo', swatch: 'linear-gradient(135deg,#3a2a12,#ffb703)' },
+  { id: 'driver', name: 'Primera persona', emoji: '👁️', desc: 'Desde el frente del vehículo', swatch: 'linear-gradient(135deg,#1c3a2a,#b8f35a)' },
+  { id: 'zoom', name: 'Zoom al impacto', emoji: '🔎', desc: 'Desde el obstáculo, con zoom', swatch: 'linear-gradient(135deg,#4a1428,#f72585)' },
+];
+
 export const SCENERIES = [
   { id: 'city', name: 'Ciudad al atardecer', emoji: '🌆', swatch: 'linear-gradient(180deg,#2a1b5c 0%,#b5468f 55%,#ff8a4c 100%)' },
   { id: 'sunny', name: 'Día soleado', emoji: '☀️', swatch: 'linear-gradient(180deg,#2f7be0 0%,#8cc6f5 60%,#5aa63c 61%,#3f8a2e 100%)' },
@@ -25,7 +35,7 @@ export const OBSTACLES = [
   { id: 'tree', name: 'Árbol' },
 ];
 
-export const DEFAULT_VISUALS = Object.freeze({ scenery: 'city', vehicle: 'sedan', obstacle: 'barrier', color: '#e5484d' });
+export const DEFAULT_VISUALS = Object.freeze({ view: 'side', scenery: 'city', vehicle: 'sedan', obstacle: 'barrier', color: '#e5484d' });
 
 const has = (list, id) => list.some((o) => o.id === id);
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -34,6 +44,7 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 export function normalizeVisuals(input) {
   const v = input && typeof input === 'object' ? input : {};
   return {
+    view: has(VIEWS, v.view) ? v.view : DEFAULT_VISUALS.view,
     scenery: has(SCENERIES, v.scenery) ? v.scenery : DEFAULT_VISUALS.scenery,
     vehicle: has(VEHICLES, v.vehicle) ? v.vehicle : DEFAULT_VISUALS.vehicle,
     obstacle: has(OBSTACLES, v.obstacle) ? v.obstacle : DEFAULT_VISUALS.obstacle,

@@ -9,8 +9,9 @@ import { CAR_LENGTH } from '../physics/params.js';
 import { createEnvironment, LANE_Z } from './environment.js';
 import { createVehicle } from './vehicles.js';
 import { createObstacle } from './obstacles.js';
+import { RIGS, DEFAULT_VIEW, blendPose } from './cameraRigs.js';
 
-const BASE_FOV = 38;
+const TRANSITION_S = 1.0; // seconds to glide between viewpoints
 
 export function createScene(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -26,7 +27,7 @@ export function createScene(canvas) {
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environmentIntensity = 0.35;
 
-  const camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.1, 700);
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 700);
 
   const hemi = new THREE.HemisphereLight(0x8a7bd8, 0x1a1020, 0.7);
   const sun = new THREE.DirectionalLight(0xffb27a, 2.2);
@@ -64,8 +65,12 @@ export function createScene(canvas) {
 
   // Effects write here; applied at render time on top of the fixed side camera.
   const camFx = { fovAdd: 0, offset: new THREE.Vector3() };
-  const base = { pos: new THREE.Vector3(), look: new THREE.Vector3() };
-  let cx = 0;
+  let viewId = DEFAULT_VIEW;
+  let lastSnap = null;
+  let lastPose = null;
+  let transition = null; // { from, start }
+  let now = 0;
+  let themeBloom = 0.55;
 
   const api = {
     scene,
@@ -110,6 +115,7 @@ export function createScene(canvas) {
       sun.intensity = t.sun.intensity;
       renderer.toneMappingExposure = t.exposure;
       bloom.strength = t.bloom[0];
+      themeBloom = t.bloom[0];
       bloom.threshold = t.bloom[1];
       api.beam = t.beam;
     },
@@ -129,23 +135,45 @@ export function createScene(canvas) {
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
     },
+    get rig() {
+      return RIGS[viewId];
+    },
+    setView(id) {
+      if (!RIGS[id] || id === viewId) return;
+      transition = lastPose ? { from: lastPose, start: now } : null;
+      viewId = id;
+    },
     /** Map physical snapshot -> poses. Car x is the rear; obstacle x is the face that gets hit. */
     update(snap) {
+      lastSnap = snap;
       carRoot.position.x = snap.x;
       vehicle?.pose(snap.x, snap.a);
       obstacleRoot.position.x = snap.obstacleX;
-      cx = snap.x + CAR_LENGTH / 2;
-      base.pos.set(cx + 3.5, 3.4, 19);
-      base.look.set(cx + 3.5, 1.3, LANE_Z * 0.6);
+      const cx = snap.x + CAR_LENGTH / 2;
       sun.position.set(cx - 14, 24, 14);
       sun.target.position.set(cx, 0, 0);
     },
     render(time) {
+      now = time;
       obstacle?.animate(time);
-      camera.position.copy(base.pos).add(camFx.offset);
-      camera.lookAt(base.look);
-      env.update(cx, camera.position, time);
-      const fov = BASE_FOV + camFx.fovAdd;
+      const snap = lastSnap;
+      const rig = RIGS[viewId];
+      let pose = rig.pose({ carX: snap.x, cx: snap.x + CAR_LENGTH / 2, obstacleX: snap.obstacleX, snap, time, eye: api.vehicleMeta.eye ?? [3.4, 1.3] });
+      lastPose = pose;
+      if (transition) {
+        const k = (time - transition.start) / TRANSITION_S;
+        if (k >= 1) transition = null;
+        else pose = blendPose(transition.from, pose, k);
+      }
+      // cameras that sit in or face the headlights get a much softer glare
+      const glare = rig.beams === false;
+      spot.intensity = glare ? 220 : 900;
+      bloom.strength = glare ? themeBloom * 0.45 : themeBloom;
+      camera.up.copy(pose.up);
+      camera.position.copy(pose.pos).add(camFx.offset);
+      camera.lookAt(pose.look);
+      env.update(snap.x + CAR_LENGTH / 2, camera.position, time);
+      const fov = pose.fov + camFx.fovAdd * rig.fx;
       if (Math.abs(camera.fov - fov) > 1e-3) {
         camera.fov = fov;
         camera.updateProjectionMatrix();

@@ -1,5 +1,5 @@
 // Left drawer "Visuales": scenery, vehicle (+ colour) and obstacle pickers. DOM only.
-import { SCENERIES, VEHICLES, OBSTACLES } from '../visuals/catalog.js';
+import { VIEWS, SCENERIES, VEHICLES, OBSTACLES } from '../visuals/catalog.js';
 
 function el(tag, cls, text) {
   const n = document.createElement(tag);
@@ -33,6 +33,7 @@ export function createVisualsPanel({ store, drawer, backdrop, body, openBtn, clo
       btn.type = 'button';
       btn.dataset.id = o.id;
       btn.append(build(o), el('span', 'opt-name', o.name));
+      if (o.desc) btn.append(el('span', 'opt-desc', o.desc));
       btn.addEventListener('click', () => {
         select(key, o.id);
         onChange(key, o.id);
@@ -54,6 +55,12 @@ export function createVisualsPanel({ store, drawer, backdrop, body, openBtn, clo
     return wrap;
   };
 
+  const viewSection = section('Vista', 'ángulo de cámara', 'view', VIEWS, (o) => {
+    const sw = el('span', 'opt-thumb swatch');
+    sw.style.background = o.swatch;
+    sw.append(el('span', 'emoji', o.emoji));
+    return sw;
+  });
   const scenerySection = section('Paisaje', 'fondo de la pista', 'scenery', SCENERIES, (o) => {
     const sw = el('span', 'opt-thumb swatch');
     sw.style.background = o.swatch;
@@ -69,7 +76,7 @@ export function createVisualsPanel({ store, drawer, backdrop, body, openBtn, clo
   colorRow.append(color);
   vehicleSection.append(colorRow);
   const obstacleSection = section('Obstáculo', 'lo que hay al final', 'obstacle', OBSTACLES, thumb(thumbImgs.obstacle));
-  body.replaceChildren(scenerySection, vehicleSection, obstacleSection);
+  body.replaceChildren(viewSection, scenerySection, vehicleSection, obstacleSection);
 
   function loadThumbs() {
     if (thumbsDone) return;
@@ -107,6 +114,7 @@ export function createVisualsPanel({ store, drawer, backdrop, body, openBtn, clo
   document.addEventListener('physicslab:drawer', (e) => e.detail !== 'visuals' && close());
 
   const v = store.get();
+  select('view', v.view);
   select('scenery', v.scenery);
   select('vehicle', v.vehicle);
   select('obstacle', v.obstacle);

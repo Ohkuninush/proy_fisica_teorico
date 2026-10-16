@@ -32,7 +32,8 @@ const visuals = createVisualsPanel({
   closeBtn: $('close-visuals'),
   getThumbs: renderThumbnails,
   onChange(key, value) {
-    if (key === 'scenery') view.setScenery(value);
+    if (key === 'view') view.setView(value);
+    else if (key === 'scenery') view.setScenery(value);
     else if (key === 'obstacle') view.setObstacle(value);
     else if (key === 'vehicle') {
       const c = defaultColorFor(value); // each vehicle starts with its own colour; the picker can override it
@@ -47,6 +48,7 @@ const visuals = createVisualsPanel({
 });
 {
   const v = visualsStore.get();
+  view.setView(v.view);
   view.setScenery(v.scenery);
   view.setVehicle(v.vehicle);
   view.setObstacle(v.obstacle);
@@ -156,4 +158,4 @@ renderUI(latest);
 requestAnimationFrame(loop);
 
 // Test/debug hook.
-window.__lab = { controller, effects };
+window.__lab = { controller, effects, view };
