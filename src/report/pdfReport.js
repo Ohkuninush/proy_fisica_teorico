@@ -170,26 +170,32 @@ function chip(doc, text, color, x, y) {
   return w;
 }
 
-function kpiCard(doc, x, y, w, h, label, value, unit, color) {
-  setFill(doc, C.panel);
-  setDraw(doc, C.line);
+/** Card whose accent colour shows as a strip along the whole left edge (follows the rounded corners). */
+const ACCENT_W = 1.7;
+function accentCard(doc, x, y, w, h, r, accent, fill, stroke) {
+  setFill(doc, accent);
+  setDraw(doc, stroke);
   doc.setLineWidth(0.3);
-  doc.roundedRect(x, y, w, h, 2.2, 2.2, 'FD');
-  setFill(doc, color);
-  doc.roundedRect(x + 2.6, y + 4, 1.3, h - 8, 0.65, 0.65, 'F'); // inset: sits inside the card, clear of its border
+  doc.roundedRect(x, y, w, h, r, r, 'FD');
+  setFill(doc, fill);
+  doc.roundedRect(x + ACCENT_W, y, w - ACCENT_W, h, r, r, 'F');
+}
+
+function kpiCard(doc, x, y, w, h, label, value, unit, color) {
+  accentCard(doc, x, y, w, h, 2.2, color, C.panel, C.line);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.2);
   setInk(doc, C.muted);
-  doc.text(toLatin1(label).toUpperCase(), x + 6.6, y + 6.2);
+  doc.text(toLatin1(label).toUpperCase(), x + 5.6, y + 6.2);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
   setInk(doc, C.ink);
-  doc.text(value, x + 6.6, y + 15.4);
+  doc.text(value, x + 5.6, y + 15.4);
   const vw = doc.getTextWidth(value);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   setInk(doc, C.muted);
-  doc.text(toLatin1(unit), x + 6.6 + vw + 1.6, y + 15.4);
+  doc.text(toLatin1(unit), x + 5.6 + vw + 1.6, y + 15.4);
 }
 
 /* ---------- pages ---------- */
@@ -299,16 +305,11 @@ function resultsPage(doc, entry, dateText) {
   // outcome banner
   const hit = r.impact;
   const tone = hit ? C.pink : C.violet;
-  setFill(doc, mix(tone, C.white, 0.9));
-  setDraw(doc, mix(tone, C.white, 0.5));
-  doc.setLineWidth(0.3);
-  doc.roundedRect(M, y, CW, 13, 2.2, 2.2, 'FD');
-  setFill(doc, tone);
-  doc.roundedRect(M + 2.6, y + 2.8, 1.3, 7.4, 0.65, 0.65, 'F');
+  accentCard(doc, M, y, CW, 13, 2.2, tone, mix(tone, C.white, 0.9), mix(tone, C.white, 0.5));
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
   setInk(doc, tone);
-  doc.text(hit ? 'Impacto detectado' : 'Experimento finalizado sin colisión', M + 7, y + 5.4);
+  doc.text(hit ? 'Impacto detectado' : 'Experimento finalizado sin colisión', M + 6, y + 5.4);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.6);
   setInk(doc, C.ink);
@@ -316,7 +317,7 @@ function resultsPage(doc, entry, dateText) {
     hit
       ? `El frente del vehículo alcanzó el obstáculo en t = ${f(hit.t)} s con v = ${f(hit.v)} m/s (${f(msToKmh(hit.v), 1)} km/h).`
       : `Terminó al cumplirse la duración (${f(p.duration, 1)} s); el obstáculo quedó a ${f(r.remaining)} m.`,
-    M + 7,
+    M + 6,
     y + 10,
   );
   y += 13 + 10;
