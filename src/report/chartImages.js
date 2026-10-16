@@ -1,32 +1,16 @@
-// Print-friendly chart images (white background, dark ink) rendered off-screen with Chart.js.
-import { Chart, LineController, LineElement, PointElement, LinearScale, Filler } from 'chart.js';
+import { Chart, Filler, LinearScale, LineController, LineElement, PointElement } from 'chart.js';
 import { axisBounds } from './series.js';
+import { niceTicks } from './ticks.js';
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, Filler);
 
-export const CHART_W = 1200;
-export const CHART_H = 380;
-const FONT = 'Helvetica, Arial, sans-serif';
+export const CHART_WIDTH = 1200;
+export const CHART_HEIGHT = 380;
+
+const FONT_FAMILY = 'Helvetica, Arial, sans-serif';
 const INK = '#4a5470';
 const GRID = '#e3e7f0';
-
-function niceStep(range, target) {
-  const raw = range / target;
-  const p = 10 ** Math.floor(Math.log10(raw));
-  const n = raw / p;
-  return (n < 1.5 ? 1 : n < 3 ? 2 : n < 7 ? 5 : 10) * p;
-}
-
-/** Round tick values (1, 2, 5 x 10^n); optionally close the axis with its exact end value. */
-export function niceTicks(min, max, { includeEnd = false, target = 6 } = {}) {
-  const step = niceStep(max - min, target);
-  const out = [];
-  for (let v = Math.ceil(min / step - 1e-9) * step; v <= max + 1e-9; v += step) out.push({ value: +v.toFixed(10) });
-  if (includeEnd && out.length && max - out[out.length - 1].value > step * 0.3) out.push({ value: max });
-  return out;
-}
-
-const fmtTick = (v) => String(+Number(v).toFixed(2));
+const AXIS_LINE = '#aab3cc';
 
 export const SERIES_STYLE = {
   x: { color: '#1b9ac4', yLabel: 'Posición (m)' },
@@ -36,8 +20,7 @@ export const SERIES_STYLE = {
 
 const whiteBackground = {
   id: 'whiteBackground',
-  beforeDraw(chart) {
-    const { ctx, width, height } = chart;
+  beforeDraw({ ctx, width, height }) {
     ctx.save();
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
@@ -45,16 +28,26 @@ const whiteBackground = {
   },
 };
 
-/** @param key 'x' | 'v' | 'a'  @returns PNG data URL */
+const formatTick = (value) => String(+Number(value).toFixed(2));
+
+const printAxis = (label, { min, max, ticks }) => ({
+  type: 'linear',
+  min,
+  max,
+  afterBuildTicks: (axis) => (axis.ticks = ticks(axis)),
+  title: { display: true, text: label, color: INK, font: { size: 26, family: FONT_FAMILY, weight: 'bold' } },
+  ticks: { color: INK, font: { size: 24, family: FONT_FAMILY }, callback: formatTick },
+  grid: { color: GRID, lineWidth: 2 },
+  border: { color: AXIS_LINE, width: 2 },
+});
+
 export function renderChartPng(series, key) {
   const { color, yLabel } = SERIES_STYLE[key];
   const canvas = document.createElement('canvas');
-  canvas.width = CHART_W;
-  canvas.height = CHART_H;
-  const b = axisBounds(series[key]);
-  const last = series.t.length - 1;
-  const tick = { color: INK, font: { size: 24, family: FONT }, callback: fmtTick };
-  const title = (text) => ({ display: true, text, color: INK, font: { size: 26, family: FONT, weight: 'bold' } });
+  canvas.width = CHART_WIDTH;
+  canvas.height = CHART_HEIGHT;
+  const bounds = axisBounds(series[key]);
+  const lastIndex = series.t.length - 1;
 
   const chart = new Chart(canvas, {
     type: 'line',
@@ -67,7 +60,7 @@ export function renderChartPng(series, key) {
           borderWidth: 5,
           backgroundColor: `${color}26`,
           fill: 'origin',
-          pointRadius: (ctx) => (ctx.dataIndex === last ? 11 : 0),
+          pointRadius: ({ dataIndex }) => (dataIndex === lastIndex ? 11 : 0),
           pointBackgroundColor: '#ffffff',
           pointBorderColor: color,
           pointBorderWidth: 6,
@@ -84,8 +77,8 @@ export function renderChartPng(series, key) {
       layout: { padding: { top: 18, right: 30, bottom: 6, left: 6 } },
       plugins: { legend: { display: false }, tooltip: { enabled: false } },
       scales: {
-        x: { type: 'linear', min: 0, max: series.tEnd, afterBuildTicks: (ax) => (ax.ticks = niceTicks(ax.min, ax.max, { includeEnd: true })), title: title('Tiempo (s)'), ticks: tick, grid: { color: GRID, lineWidth: 2 }, border: { color: '#aab3cc', width: 2 } },
-        y: { type: 'linear', min: b.min, max: b.max, afterBuildTicks: (ax) => (ax.ticks = niceTicks(ax.min, ax.max, { target: 5 })), title: title(yLabel), ticks: tick, grid: { color: GRID, lineWidth: 2 }, border: { color: '#aab3cc', width: 2 } },
+        x: printAxis('Tiempo (s)', { min: 0, max: series.tEnd, ticks: (axis) => niceTicks(axis.min, axis.max, { includeEnd: true }) }),
+        y: printAxis(yLabel, { min: bounds.min, max: bounds.max, ticks: (axis) => niceTicks(axis.min, axis.max, { target: 5 }) }),
       },
     },
   });

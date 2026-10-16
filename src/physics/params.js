@@ -1,8 +1,6 @@
-// Parameter defaults and validation. Units: m, s, m/s, m/s^2.
+const MS_TO_KMH = 3.6;
 
-export const MODELS = Object.freeze({ MRU: 'MRU', MRUV: 'MRUV' });
-export const CAR_LENGTH = 4.2; // m
-export const MS_TO_KMH = 3.6;
+export const CAR_LENGTH = 4.2;
 
 export const DEFAULTS = Object.freeze({
   MRU: Object.freeze({ model: 'MRU', x0: 0, v0: 20, a: 0, duration: 20, gap: 200 }),
@@ -18,28 +16,27 @@ export const LIMITS = {
 };
 
 export const msToKmh = (v) => v * MS_TO_KMH;
-export const kmhToMs = (v) => v / MS_TO_KMH;
 
-/**
- * Returns { ok, errors, fieldErrors, params }. params is a normalized copy (MRU forces a = 0).
- * fieldErrors maps a field name to a Spanish message for the form.
- */
+const isModel = (model) => model === 'MRU' || model === 'MRUV';
+
+const toNumber = (raw) => (typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : raw);
+
 export function validateParams(input) {
-  const errors = [];
-  const fieldErrors = {};
   const model = input?.model;
-  if (model !== MODELS.MRU && model !== MODELS.MRUV) {
+  if (!isModel(model)) {
     return { ok: false, errors: ['model must be MRU or MRUV'], fieldErrors: { model: 'Elige MRU o MRUV' }, params: null };
   }
+
+  const errors = [];
+  const fieldErrors = {};
   const params = { model };
-  for (const key of Object.keys(LIMITS)) {
-    if (key === 'a' && model === MODELS.MRU) {
+
+  for (const [key, [min, max]] of Object.entries(LIMITS)) {
+    if (key === 'a' && model === 'MRU') {
       params.a = 0;
       continue;
     }
-    const raw = input[key];
-    const value = typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : raw;
-    const [min, max] = LIMITS[key];
+    const value = toNumber(input[key]);
     if (typeof value !== 'number' || !Number.isFinite(value)) {
       errors.push(`${key} must be a finite number`);
       fieldErrors[key] = 'Debe ser un número';
@@ -50,5 +47,7 @@ export function validateParams(input) {
       params[key] = value;
     }
   }
-  return errors.length ? { ok: false, errors, fieldErrors, params: null } : { ok: true, errors, fieldErrors, params };
+
+  const ok = errors.length === 0;
+  return { ok, errors, fieldErrors, params: ok ? params : null };
 }

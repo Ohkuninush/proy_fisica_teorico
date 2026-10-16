@@ -1,12 +1,6 @@
-// Low-poly scenery pieces. Each builder returns ONE vertex-coloured geometry (base at y = 0),
-// so a recycled mesh can swap variants cheaply.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-
-export const hash = (n) => {
-  const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
-  return s - Math.floor(s);
-};
+import { hash } from './math.js';
 
 function paint(geo, hex) {
   const g = geo.index ? geo.toNonIndexed() : geo;
@@ -18,7 +12,6 @@ function paint(geo, hex) {
   return g;
 }
 
-/** Colour every triangle from a function of its centroid (flat, faceted look). */
 function paintTriangles(geo, colorOf) {
   const g = geo.index ? geo.toNonIndexed() : geo;
   const p = g.attributes.position;
@@ -95,7 +88,6 @@ export function palm(variant = 0) {
   return merge(parts);
 }
 
-/** Jittered cone with rock/forest/snow colouring by height. */
 export function mountain(w, h, seed = 1, pal = {}) {
   const { rock = 0x6d7a96, low = 0x4f6a4a, snow = 0xf4f8ff, snowLine = 0.6 } = pal;
   const geo = new THREE.ConeGeometry(w, h, 8, 6);

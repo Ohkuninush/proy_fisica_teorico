@@ -1,0 +1,47 @@
+.charts {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  overflow: hidden;
+}
+
+.chart {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(6, 9, 20, 0.45);
+  border: 1px solid var(--line);
+}
+
+.chart h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.chart h3 .dot {
+  background: transparent;
+  box-shadow: none;
+}
+
+.live {
+  margin-left: auto;
+  font: 700 13px var(--mono);
+  color: var(--c);
+  text-shadow: 0 0 12px var(--c);
+}
+
+.cv {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}

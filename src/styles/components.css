@@ -1,0 +1,59 @@
+.muted-mono {
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+
+.icon-btn {
+  padding: 5px 7px;
+  line-height: 0;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+}
+
+.icon-btn:hover:not(:disabled) {
+  color: var(--cyan);
+  border-color: var(--line);
+  box-shadow: none;
+  transform: none;
+}
+
+.icon-btn.danger:hover:not(:disabled) {
+  color: var(--pink);
+}
+
+.tag {
+  font: 700 10px var(--mono);
+  padding: 2px 7px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  color: var(--cyan);
+  background: rgba(76, 201, 240, 0.08);
+}
+
+.tag.st-collided {
+  color: #ff7aa8;
+  border-color: rgba(247, 37, 133, 0.45);
+  background: rgba(247, 37, 133, 0.1);
+}
+
+.tag.st-finished {
+  color: var(--violet);
+  border-color: rgba(179, 136, 255, 0.45);
+  background: rgba(179, 136, 255, 0.1);
+}
+
+.empty {
+  display: grid;
+  gap: 6px;
+  text-align: center;
+  padding: 40px 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.empty strong {
+  color: var(--text);
+  font-size: 15px;
+}

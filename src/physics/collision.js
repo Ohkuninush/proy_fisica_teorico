@@ -1,16 +1,9 @@
-// Collision against a fixed obstacle. x is the car's rear reference; the front is x + carLength.
 import { CAR_LENGTH } from './params.js';
 
 export const obstacleX = (params, carLength = CAR_LENGTH) => params.x0 + carLength + params.gap;
 
-/** Largest rear position x the car can have before its front touches the obstacle. */
 export const maxCarX = (params, carLength = CAR_LENGTH) => obstacleX(params, carLength) - carLength;
 
-/**
- * Smallest t >= 0 where the car front reaches the obstacle, solving
- * 0.5*a*t^2 + v0*t - gap = 0. Returns null when it never happens
- * (ignoring the experiment duration).
- */
 export function impactTime(params) {
   const { v0, gap } = params;
   const a = params.model === 'MRU' ? 0 : params.a;

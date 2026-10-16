@@ -1,8 +1,6 @@
-// Scenery definitions. A layer is a ring buffer of meshes recycled around the camera:
-// { z, jitter, spacing, slots, seed, geos, mat, scale:[min,max], skip, yaw }.
 import * as THREE from 'three';
-import { facadeTexture } from './textures.js';
-import { pine, roundTree, bush, palm, mountain, hill } from './geometries.js';
+import { facadeTexture } from '../textures.js';
+import { pine, roundTree, bush, palm, mountain, hill } from '../geometries.js';
 
 const vegMat = () => new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 });
 
@@ -29,7 +27,6 @@ const variants = (fn, n) => Array.from({ length: n }, (_, i) => fn(i));
 
 export const THEMES = {
   city: {
-    name: 'Ciudad al atardecer',
     sky: { top: '#070a24', mid: '#5b2a86', bottom: '#ff7a45' },
     fog: ['#4a2a5c', 70, 260],
     hemi: [0x8a7bd8, 0x1a1020, 0.7],
@@ -44,7 +41,6 @@ export const THEMES = {
     layers: cityLayers,
   },
   sunny: {
-    name: 'Día soleado',
     sky: { top: '#2f7be0', mid: '#79b8f0', bottom: '#dcefff' },
     fog: ['#c3def5', 90, 330],
     hemi: [0xcfe6ff, 0x6b8f4a, 1.15],
@@ -68,7 +64,6 @@ export const THEMES = {
     },
   },
   forest: {
-    name: 'Bosque',
     sky: { top: '#5f8f8c', mid: '#a9cdbb', bottom: '#eef6e3' },
     fog: ['#a9c9b4', 25, 170],
     hemi: [0xd4ead9, 0x1d3a22, 0.95],
@@ -91,7 +86,6 @@ export const THEMES = {
     },
   },
   mountains: {
-    name: 'Montañas',
     sky: { top: '#2a56a0', mid: '#8fb4e0', bottom: '#eaf0f9' },
     fog: ['#bccbe2', 150, 540],
     hemi: [0xc9dcf5, 0x5a6a5a, 1.0],
@@ -116,7 +110,6 @@ export const THEMES = {
     },
   },
   beach: {
-    name: 'Playa',
     sky: { top: '#1f86e6', mid: '#71c1f2', bottom: '#fff0cf' },
     fog: ['#d3ebf5', 110, 340],
     hemi: [0xd6ecff, 0xd9c28a, 1.15],

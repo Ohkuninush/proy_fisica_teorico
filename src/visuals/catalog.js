@@ -1,5 +1,3 @@
-// Selectable visual options. Pure data: ids are the contract with the render modules.
-
 export const VIEWS = [
   { id: 'side', name: 'Lateral', emoji: '🎥', desc: 'Cámara fija de costado', swatch: 'linear-gradient(135deg,#1d2b53,#4a6fa5)' },
   { id: 'cinematic', name: 'Cinematográfica', emoji: '🎬', desc: 'Travelling bajo y toma del impacto', swatch: 'linear-gradient(135deg,#3b1d4a,#e0457b)' },
@@ -40,7 +38,6 @@ export const DEFAULT_VISUALS = Object.freeze({ view: 'side', scenery: 'city', ve
 const has = (list, id) => list.some((o) => o.id === id);
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
-/** Returns a complete, valid selection; unknown or missing fields fall back to the defaults. */
 export function normalizeVisuals(input) {
   const v = input && typeof input === 'object' ? input : {};
   return {

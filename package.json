@@ -1,5 +1,6 @@
 {
   "name": "physicslab-3d",
+  "description": "Simulación 3D interactiva de MRU y MRUV con colisión, gráficas, historial y reportes PDF.",
   "private": true,
   "version": "0.1.0",
   "type": "module",

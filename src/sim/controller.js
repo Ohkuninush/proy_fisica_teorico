@@ -1,5 +1,3 @@
-// Simulation lifecycle. Simulated time advances by real dt (clamped), independent of render rate.
-// All physical values come from the experiment; this module only keeps time, history and status.
 import { createExperiment } from '../physics/experiment.js';
 
 export const STATUS = Object.freeze({
@@ -10,7 +8,7 @@ export const STATUS = Object.freeze({
   COLLIDED: 'collided',
 });
 
-const MAX_DT = 0.1; // s; avoids time jumps after a stalled tab
+const MAX_DT = 0.1;
 
 export function createController(initialParams, deps = {}) {
   const raf = deps.raf ?? ((fn) => requestAnimationFrame(fn));
@@ -74,7 +72,6 @@ export function createController(initialParams, deps = {}) {
     lastTs = null;
   }
 
-  /** Advance simulated time by dt seconds. Public so tests can drive time deterministically. */
   function advance(dt) {
     if (status !== STATUS.RUNNING) return;
     t = Math.min(t + Math.min(Math.max(dt, 0), MAX_DT), experiment.tEnd);
@@ -134,14 +131,12 @@ export function createController(initialParams, deps = {}) {
       runLoop();
       return true;
     },
-    /** Back to t = 0 with the current configuration. */
     reset() {
       stopLoop();
       status = STATUS.IDLE;
       resetState();
       emit();
     },
-    /** Replace the configuration (only while not running/paused). Throws on invalid params. */
     configure(params) {
       if (status === STATUS.RUNNING || status === STATUS.PAUSED) return false;
       experiment = createExperiment(params);

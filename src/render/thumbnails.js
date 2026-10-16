@@ -1,27 +1,26 @@
-// Renders small PNG previews of the real 3D models (vehicles and obstacles) for the Visuales panel.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { createVehicle } from './vehicles.js';
-import { createObstacle } from './obstacles.js';
-import { VEHICLES, OBSTACLES } from '../visuals/catalog.js';
+import { OBSTACLES, VEHICLES } from '../visuals/catalog.js';
+import { createObstacle } from './obstacles/index.js';
+import { createVehicle } from './vehicles/index.js';
 
 const SIZE = 240;
+const FIELD_OF_VIEW = 30;
+const VIEW_DIRECTION = new THREE.Vector3(0.5, 0.28, 1).normalize();
 
-function frame(camera, group) {
-  const box = new THREE.Box3().setFromObject(group);
+function frameObject(camera, object) {
+  const box = new THREE.Box3().setFromObject(object);
   const center = box.getCenter(new THREE.Vector3());
   const radius = box.getSize(new THREE.Vector3()).length() / 2;
-  const dist = (radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2))) * 1.02;
-  const dir = new THREE.Vector3(0.5, 0.28, 1).normalize();
-  camera.position.copy(center).addScaledVector(dir, dist);
+  const distance = (radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2))) * 1.02;
+  camera.position.copy(center).addScaledVector(VIEW_DIRECTION, distance);
   camera.lookAt(center);
-  camera.near = dist / 20;
-  camera.far = dist * 4;
+  camera.near = distance / 20;
+  camera.far = distance * 4;
   camera.updateProjectionMatrix();
 }
 
-/** Returns { vehicles: {id: dataURL}, obstacles: {id: dataURL} }. One short-lived WebGL context. */
-export function renderThumbnails() {
+function createStudio() {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = SIZE;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
@@ -34,42 +33,49 @@ export function renderThumbnails() {
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environmentIntensity = 0.4;
-  scene.add(new THREE.HemisphereLight(0xcfd8ff, 0x2a2438, 0.7));
-  const key = new THREE.DirectionalLight(0xfff0dd, 2.0);
-  key.position.set(4, 8, 6);
-  scene.add(key);
-  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+  const keyLight = new THREE.DirectionalLight(0xfff0dd, 2.0);
+  keyLight.position.set(4, 8, 6);
+  scene.add(new THREE.HemisphereLight(0xcfd8ff, 0x2a2438, 0.7), keyLight);
 
-  const shoot = (group) => {
-    // Sprites (glow halos) would distort the framing and look odd on a transparent background.
-    const sprites = [];
-    group.traverse((o) => o.isSprite && sprites.push(o));
-    sprites.forEach((s) => s.parent.remove(s));
-    scene.add(group);
-    frame(camera, group);
-    renderer.render(scene, camera);
-    const url = canvas.toDataURL('image/png');
-    scene.remove(group);
-    return url;
+  const camera = new THREE.PerspectiveCamera(FIELD_OF_VIEW, 1, 0.1, 100);
+
+  return {
+    photograph(object) {
+      const sprites = [];
+      object.traverse((node) => node.isSprite && sprites.push(node));
+      sprites.forEach((sprite) => sprite.parent.remove(sprite));
+      scene.add(object);
+      frameObject(camera, object);
+      renderer.render(scene, camera);
+      const url = canvas.toDataURL('image/png');
+      scene.remove(object);
+      return url;
+    },
+    close() {
+      pmrem.dispose();
+      renderer.dispose();
+      renderer.forceContextLoss();
+    },
   };
+}
 
-  const out = { vehicles: {}, obstacles: {} };
-  VEHICLES.forEach((v) => {
-    const m = createVehicle(v.id);
-    m.setColor(v.color);
-    // drop the flat shadow/glow planes from the preview
-    m.group.children.filter((c) => c.material?.transparent).forEach((c) => m.group.remove(c));
-    out.vehicles[v.id] = shoot(m.group);
-    m.dispose();
+export function renderThumbnails() {
+  const studio = createStudio();
+  const thumbnails = { vehicles: {}, obstacles: {} };
+
+  VEHICLES.forEach(({ id, color }) => {
+    const vehicle = createVehicle(id);
+    vehicle.setColor(color);
+    vehicle.group.children.filter((child) => child.material?.transparent).forEach((child) => vehicle.group.remove(child));
+    thumbnails.vehicles[id] = studio.photograph(vehicle.group);
+    vehicle.dispose();
   });
-  OBSTACLES.forEach((o) => {
-    const m = createObstacle(o.id);
-    out.obstacles[o.id] = shoot(m.group);
-    m.dispose();
+  OBSTACLES.forEach(({ id }) => {
+    const obstacle = createObstacle(id);
+    thumbnails.obstacles[id] = studio.photograph(obstacle.group);
+    obstacle.dispose();
   });
 
-  pmrem.dispose();
-  renderer.dispose();
-  renderer.forceContextLoss();
-  return out;
+  studio.close();
+  return thumbnails;
 }

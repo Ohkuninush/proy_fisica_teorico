@@ -1,4 +1,3 @@
-// Experiment = validated params + motion + collision. Single source of physical truth.
 import { stateAt } from './motion.js';
 import { impactTime, obstacleX, maxCarX } from './collision.js';
 import { validateParams } from './params.js';
@@ -16,7 +15,7 @@ export function createExperiment(input) {
     const tc = Math.min(Math.max(t, 0), tEnd);
     const s = stateAt(params, tc);
     const collided = collides && tc >= tHit;
-    if (collided) s.x = maxCarX(params); // remove float residue at impact
+    if (collided) s.x = maxCarX(params);
     return { ...s, collided, finished: tc >= tEnd };
   }
 

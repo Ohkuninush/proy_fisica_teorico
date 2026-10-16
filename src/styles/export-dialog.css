@@ -1,0 +1,170 @@
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(3, 4, 12, 0.6);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.modal-backdrop.open {
+  opacity: 1;
+}
+
+.modal-backdrop[hidden],
+.modal[hidden] {
+  display: none;
+}
+
+.modal {
+  position: fixed;
+  z-index: 70;
+  top: 50%;
+  left: 50%;
+  width: min(520px, 94vw);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(12, 17, 36, 0.96);
+  border: 1px solid var(--line);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transform: translate(-50%, -46%) scale(0.97);
+  opacity: 0;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s;
+}
+
+.modal.open {
+  transform: translate(-50%, -50%);
+  opacity: 1;
+}
+
+.modal header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal h2 {
+  margin: 0;
+}
+
+.modal-sub {
+  margin: 6px 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.export-tools {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.check-all {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.export-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  display: grid;
+  gap: 8px;
+  min-height: 80px;
+}
+
+.export-item label {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas: "box main tags" "box nums nums";
+  gap: 2px 10px;
+  align-items: center;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(8, 12, 28, 0.6);
+  border: 1px solid var(--line);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.export-item label:has(input:checked) {
+  border-color: var(--cyan);
+  background: rgba(76, 201, 240, 0.09);
+}
+
+.export-item input {
+  grid-area: box;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--cyan);
+}
+
+.export-main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.export-main strong {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-main time {
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+
+.export-tags {
+  grid-area: tags;
+  display: flex;
+  gap: 6px;
+}
+
+.export-nums {
+  grid-area: nums;
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+
+.export-status {
+  min-height: 18px;
+  margin: 10px 0 0;
+  font: 12px var(--mono);
+  color: var(--muted);
+}
+
+.export-status[data-kind="ok"] {
+  color: var(--lime);
+}
+
+.export-status[data-kind="error"] {
+  color: #ff7a8a;
+}
+
+.modal footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.modal footer button {
+  min-width: 110px;
+}

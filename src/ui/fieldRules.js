@@ -1,8 +1,7 @@
-// Which experiment fields apply to each physical model. Single source for the form.
 export const ALL_FIELDS = ['x0', 'v0', 'a', 'duration', 'gap'];
 
 const BY_MODEL = {
-  MRU: ['x0', 'v0', 'duration', 'gap'], // a is always 0
+  MRU: ['x0', 'v0', 'duration', 'gap'],
   MRUV: ['x0', 'v0', 'a', 'duration', 'gap'],
 };
 

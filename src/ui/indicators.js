@@ -1,4 +1,3 @@
-// Snapshot -> display strings. Pure; no physics beyond unit conversion.
 import { msToKmh } from '../physics/params.js';
 
 const STATUS_LABEL = {
@@ -9,18 +8,18 @@ const STATUS_LABEL = {
   collided: 'Colisión',
 };
 
-const f = (n, d = 2) => (Number.isFinite(n) ? n.toFixed(d) : '—');
+const fixed = (value, digits = 2) => (Number.isFinite(value) ? value.toFixed(digits) : '—');
 
-export function formatIndicators(s) {
+export function formatIndicators(snap) {
   return {
-    time: `${f(s.t)} s`,
-    position: `${f(s.x)} m`,
-    traveled: `${f(s.traveled)} m`,
-    speed: `${f(s.v)} m/s`,
-    speedKmh: `${f(msToKmh(s.v), 1)} km/h`,
-    acceleration: `${f(s.a)} m/s²`,
-    remaining: `${f(s.remaining)} m`,
-    vMax: `${f(s.vMax)} m/s (${f(msToKmh(s.vMax), 1)} km/h)`,
-    status: STATUS_LABEL[s.status] ?? s.status,
+    time: `${fixed(snap.t)} s`,
+    position: `${fixed(snap.x)} m`,
+    traveled: `${fixed(snap.traveled)} m`,
+    speed: `${fixed(snap.v)} m/s`,
+    speedKmh: `${fixed(msToKmh(snap.v), 1)} km/h`,
+    acceleration: `${fixed(snap.a)} m/s²`,
+    remaining: `${fixed(snap.remaining)} m`,
+    vMax: `${fixed(snap.vMax)} m/s (${fixed(msToKmh(snap.vMax), 1)} km/h)`,
+    status: STATUS_LABEL[snap.status] ?? snap.status,
   };
 }

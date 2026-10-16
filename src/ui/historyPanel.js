@@ -1,36 +1,20 @@
-// Left drawer with the saved experiments. DOM only; data lives in history/store.js.
-import { formatIndicators } from './indicators.js';
 import { MAX_COMMENT, MAX_NAME } from '../history/store.js';
+import { el, iconButton } from './dom.js';
+import { formatIndicators } from './indicators.js';
+import { createDrawer } from './overlay.js';
 
-function el(tag, cls, text) {
-  const n = document.createElement(tag);
-  if (cls) n.className = cls;
-  if (text !== undefined) n.textContent = text;
-  return n;
-}
+const SVG_ATTRIBUTES = 'viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+const PENCIL_ICON = `<svg ${SVG_ATTRIBUTES}><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+const TRASH_ICON = `<svg ${SVG_ATTRIBUTES}><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>`;
 
-const PENCIL =
-  '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
-const TRASH =
-  '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>';
+const EMPTY_TITLE = 'Aún no hay pruebas';
+const EMPTY_HINT = 'Cada experimento que termine (finalizado o con colisión) se guarda aquí automáticamente.';
+
+const entryParameters = ({ x0, v0, a, duration, gap, model }) =>
+  `x₀ ${x0} m · v₀ ${v0} m/s${model === 'MRUV' ? ` · a ${a} m/s²` : ''} · ${duration} s · obstáculo ${gap} m`;
 
 export function createHistoryPanel({ store, drawer, backdrop, list, count, openBtn, closeBtn, badge }) {
-  let lastFocus = null;
-
-  function open() {
-    lastFocus = document.activeElement;
-    drawer.classList.add('open');
-    backdrop.classList.add('open');
-    document.dispatchEvent(new CustomEvent('physicslab:drawer', { detail: 'history' }));
-    drawer.setAttribute('aria-hidden', 'false');
-    closeBtn.focus();
-  }
-  function close() {
-    drawer.classList.remove('open');
-    backdrop.classList.remove('open');
-    drawer.setAttribute('aria-hidden', 'true');
-    lastFocus?.focus?.();
-  }
+  createDrawer({ id: 'history', drawer, backdrop, openButton: openBtn, closeButton: closeBtn });
 
   function startRename(entry, titleRow) {
     const input = el('input', 'name-input');
@@ -41,86 +25,91 @@ export function createHistoryPanel({ store, drawer, backdrop, list, count, openB
     titleRow.replaceChildren(input);
     input.focus();
     input.select();
-    let done = false;
+
+    let finished = false;
     const finish = (save) => {
-      if (done) return;
-      done = true;
+      if (finished) return;
+      finished = true;
       if (save && input.value.trim()) store.update(entry.id, { name: input.value });
-      else render(store.list()); // restore (also covers cancel / empty)
+      else render(store.list());
     };
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') finish(true);
-      if (e.key === 'Escape') {
-        e.stopPropagation();
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') finish(true);
+      if (event.key === 'Escape') {
+        event.stopPropagation();
         finish(false);
       }
     });
     input.addEventListener('blur', () => finish(true));
   }
 
-  function card(entry) {
-    const ind = formatIndicators({ ...entry.result, params: entry.params });
-    const li = el('li', `entry ${entry.result.status}`);
+  function entryHeader(entry) {
+    const title = el('div', 'entry-title');
+    const rename = iconButton('icon-btn', PENCIL_ICON, `Renombrar ${entry.name}`, 'Renombrar prueba');
+    rename.addEventListener('click', () => startRename(entry, title));
+    title.append(el('strong', '', entry.name), rename);
 
-    const head = el('div', 'entry-head');
-    const titleRow = el('div', 'entry-title');
-    const draw = () => {
-      const name = el('strong', '', entry.name);
-      const pencil = el('button', 'icon-btn');
-      pencil.type = 'button';
-      pencil.innerHTML = PENCIL;
-      pencil.title = 'Renombrar prueba';
-      pencil.setAttribute('aria-label', `Renombrar ${entry.name}`);
-      pencil.addEventListener('click', () => startRename(entry, titleRow));
-      titleRow.replaceChildren(name, pencil);
-    };
-    draw();
-    const del = el('button', 'icon-btn danger');
-    del.type = 'button';
-    del.innerHTML = TRASH;
-    del.title = 'Eliminar';
-    del.setAttribute('aria-label', `Eliminar ${entry.name}`);
-    del.addEventListener('click', () => {
+    const remove = iconButton('icon-btn danger', TRASH_ICON, `Eliminar ${entry.name}`, 'Eliminar');
+    remove.addEventListener('click', () => {
       if (window.confirm(`¿Eliminar "${entry.name}"?`)) store.remove(entry.id);
     });
-    head.append(titleRow, del);
 
+    const header = el('div', 'entry-head');
+    header.append(title, remove);
+    return header;
+  }
+
+  function entryMeta(entry, indicators) {
     const meta = el('div', 'entry-meta');
-    meta.append(el('time', '', entry.savedAt), el('span', 'tag', entry.params.model), el('span', `tag st-${entry.result.status}`, ind.status));
+    meta.append(el('time', '', entry.savedAt), el('span', 'tag', entry.params.model), el('span', `tag st-${entry.result.status}`, indicators.status));
+    return meta;
+  }
 
-    const grid = el('dl', 'entry-grid');
+  function entryGrid(indicators) {
     const rows = [
-      ['Tiempo', ind.time],
-      ['Posición', ind.position],
-      ['Recorrido', ind.traveled],
-      ['Velocidad', `${ind.speed} · ${ind.speedKmh}`],
-      ['Aceleración', ind.acceleration],
-      ['Al obstáculo', ind.remaining],
-      ['Vel. máxima', ind.vMax],
+      ['Tiempo', indicators.time],
+      ['Posición', indicators.position],
+      ['Recorrido', indicators.traveled],
+      ['Velocidad', `${indicators.speed} · ${indicators.speedKmh}`],
+      ['Aceleración', indicators.acceleration],
+      ['Al obstáculo', indicators.remaining],
+      ['Vel. máxima', indicators.vMax],
     ];
-    rows.forEach(([k, v]) => grid.append(el('dt', '', k), el('dd', '', v)));
+    const grid = el('dl', 'entry-grid');
+    rows.forEach(([label, value]) => grid.append(el('dt', '', label), el('dd', '', value)));
+    return grid;
+  }
 
-    const p = entry.params;
-    const params = el(
-      'p',
-      'entry-params',
-      `x₀ ${p.x0} m · v₀ ${p.v0} m/s${p.model === 'MRUV' ? ` · a ${p.a} m/s²` : ''} · ${p.duration} s · obstáculo ${p.gap} m`,
-    );
+  function commentBox(entry) {
+    const textarea = el('textarea');
+    textarea.maxLength = MAX_COMMENT;
+    textarea.rows = 2;
+    textarea.placeholder = `Comentario (máx. ${MAX_COMMENT} caracteres)`;
+    textarea.value = entry.comment;
+    textarea.setAttribute('aria-label', `Comentario de ${entry.name}`);
+
+    const counter = el('span', 'counter');
+    const updateCounter = () => (counter.textContent = `${textarea.value.length}/${MAX_COMMENT}`);
+    updateCounter();
+    textarea.addEventListener('input', updateCounter);
+    textarea.addEventListener('change', () => store.update(entry.id, { comment: textarea.value }));
 
     const box = el('div', 'comment');
-    const ta = el('textarea');
-    ta.maxLength = MAX_COMMENT;
-    ta.rows = 2;
-    ta.placeholder = 'Comentario (máx. 200 caracteres)';
-    ta.value = entry.comment;
-    ta.setAttribute('aria-label', `Comentario de ${entry.name}`);
-    const counter = el('span', 'counter', `${ta.value.length}/${MAX_COMMENT}`);
-    ta.addEventListener('input', () => (counter.textContent = `${ta.value.length}/${MAX_COMMENT}`));
-    ta.addEventListener('change', () => store.update(entry.id, { comment: ta.value }));
-    box.append(ta, counter);
+    box.append(textarea, counter);
+    return box;
+  }
 
-    li.append(head, meta, grid, params, box);
-    return li;
+  function card(entry) {
+    const indicators = formatIndicators({ ...entry.result, params: entry.params });
+    const item = el('li', `entry ${entry.result.status}`);
+    item.append(entryHeader(entry), entryMeta(entry, indicators), entryGrid(indicators), el('p', 'entry-params', entryParameters(entry.params)), commentBox(entry));
+    return item;
+  }
+
+  function renderEmpty() {
+    const empty = el('li', 'empty');
+    empty.append(el('strong', '', EMPTY_TITLE), el('span', '', EMPTY_HINT));
+    list.replaceChildren(empty);
   }
 
   function render(entries) {
@@ -128,26 +117,14 @@ export function createHistoryPanel({ store, drawer, backdrop, list, count, openB
     badge.textContent = entries.length;
     badge.hidden = entries.length === 0;
     if (!entries.length) {
-      const empty = el('li', 'empty');
-      empty.append(el('strong', '', 'Aún no hay pruebas'), el('span', '', 'Cada experimento que termine (finalizado o con colisión) se guarda aquí automáticamente.'));
-      list.replaceChildren(empty);
+      renderEmpty();
       return;
     }
-    // Keep scroll and avoid rebuilding while a textarea is being edited elsewhere.
-    const top = list.scrollTop;
+    const scrollTop = list.scrollTop;
     list.replaceChildren(...entries.map(card));
-    list.scrollTop = top;
+    list.scrollTop = scrollTop;
   }
 
-  openBtn.addEventListener('click', open);
-  closeBtn.addEventListener('click', close);
-  backdrop.addEventListener('click', close);
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && drawer.classList.contains('open')) close();
-  });
-  document.addEventListener('physicslab:drawer', (e) => e.detail !== 'history' && drawer.classList.contains('open') && close());
   store.subscribe(render);
   render(store.list());
-
-  return { open, close };
 }

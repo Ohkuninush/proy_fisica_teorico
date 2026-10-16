@@ -1,151 +1,113 @@
-// Experiment form: per-model fields, per-field validation and the "will it reach the obstacle?" check.
-import { validateParams, LIMITS, msToKmh } from '../physics/params.js';
-import { obstacleX } from '../physics/collision.js';
-import { analyzeFeasibility, REASON } from '../physics/feasibility.js';
-import { ALL_FIELDS, MODEL_HINT, isFieldVisible } from './fieldRules.js';
+import { analyzeFeasibility } from '../physics/feasibility.js';
+import { LIMITS, validateParams } from '../physics/params.js';
+import { $, el } from './dom.js';
+import { describeFeasibility } from './feasibilityText.js';
+import { ALL_FIELDS, isFieldVisible, MODEL_HINT } from './fieldRules.js';
 
-const n = (v, d = 2) => Number(v).toFixed(d);
+const modelButtons = () => document.querySelectorAll('.seg-btn');
 
-/** Spanish copy for each feasibility outcome. */
-export function describeFeasibility(f, params) {
-  const { v0, gap, duration, model } = params;
-  const a = model === 'MRU' ? 0 : params.a;
-  const wall = `Obstáculo en x = ${n(obstacleX(params), 1)} m.`;
-  switch (f.reason) {
-    case REASON.OK:
-      return { state: 'ok', title: `Choque estimado en t = ${n(f.tImpact)} s`, detail: `Velocidad de impacto: ${n(f.vImpact, 1)} m/s (${n(msToKmh(f.vImpact), 1)} km/h). ${wall}` };
-    case REASON.STATIONARY:
-      return { state: 'bad', title: 'El auto no se mueve', detail: model === 'MRU' ? 'Con v₀ = 0 nunca llega al obstáculo. Usa v₀ > 0.' : 'Con v₀ = 0 y a = 0 nunca llega al obstáculo. Usa v₀ > 0 o a > 0.' };
-    case REASON.MOVING_AWAY:
-      return {
-        state: 'bad',
-        title: 'Nunca alcanza el obstáculo',
-        detail: model === 'MRU' ? `Con v₀ = ${n(v0, 1)} m/s el auto se aleja. Usa v₀ > 0.` : `Con v₀ = ${n(v0, 1)} m/s y a = ${n(a, 1)} m/s² el auto retrocede o se queda quieto. Necesita v₀ > 0 o a > 0.`,
-      };
-    case REASON.STOPS_SHORT:
-      return { state: 'bad', title: 'Frena antes de llegar al obstáculo', detail: `Se detiene a ${n(gap - f.stopDistance)} m del obstáculo (frenado: ${n(f.stopDistance)} m; distancia: ${n(gap)} m). Reduce la desaceleración, aumenta v₀ o acerca el obstáculo.` };
-    case REASON.STOPS_AT_OBSTACLE:
-      return { state: 'bad', title: 'Llega con velocidad 0: no hay choque', detail: `Se detiene justo en el obstáculo (t = ${n(f.tImpact)} s). Ajusta v₀, a o la distancia.` };
-    case REASON.DURATION_TOO_SHORT: {
-      const max = LIMITS.duration[1];
-      const fixable = Math.ceil(f.minDuration * 10) / 10 + 0.1 <= max;
-      return {
-        state: 'warn',
-        title: 'La duración no alcanza',
-        detail: `Llegaría al obstáculo en t = ${n(f.tImpact)} s, pero la duración es ${n(duration, 1)} s.${fixable ? '' : ` Supera el máximo de ${max} s: cambia v₀, a o la distancia.`}`,
-        fixDuration: fixable ? Math.ceil(f.minDuration * 10) / 10 + 0.1 : null,
-      };
-    }
-    default:
-      return { state: 'bad', title: 'Configuración no válida', detail: '' };
-  }
-}
+export function createExperimentForm({ controller }) {
+  const inputs = Object.fromEntries(ALL_FIELDS.map((field) => [field, $(field)]));
+  const fieldErrors = {};
+  const feasibilityBox = $('feas');
+  const feasibilityTitle = $('feas-title');
+  const feasibilityDetail = $('feas-detail');
+  const fixButton = $('feas-fix');
+  const startButton = $('start');
 
-export function createExperimentForm({ $, controller }) {
-  const inputs = Object.fromEntries(ALL_FIELDS.map((k) => [k, $(k)]));
-  const errorEls = {};
-  ALL_FIELDS.forEach((k) => {
-    const [min, max] = LIMITS[k];
-    inputs[k].min = min;
-    inputs[k].max = max;
-    inputs[k].title = `Entre ${min} y ${max}`;
-    const small = document.createElement('small');
-    small.className = 'field-error';
-    small.id = `err-${k}`;
-    inputs[k].closest('label').append(small);
-    inputs[k].setAttribute('aria-describedby', small.id);
-    errorEls[k] = small;
+  ALL_FIELDS.forEach((field) => {
+    const [min, max] = LIMITS[field];
+    const input = inputs[field];
+    input.min = min;
+    input.max = max;
+    input.title = `Entre ${min} y ${max}`;
+    const error = el('small', 'field-error');
+    error.id = `err-${field}`;
+    input.closest('label').append(error);
+    input.setAttribute('aria-describedby', error.id);
+    fieldErrors[field] = error;
   });
 
-  const feas = $('feas');
-  const feasTitle = $('feas-title');
-  const feasDetail = $('feas-detail');
-  const fixBtn = $('feas-fix');
-  const startBtn = $('start');
-  let last = { ok: false, params: null };
+  const currentModel = () => $('model').value;
+  const readValues = () => ({ model: currentModel(), ...Object.fromEntries(ALL_FIELDS.map((field) => [field, inputs[field].value])) });
 
-  const model = () => $('model').value;
-  const read = () => ({ model: model(), ...Object.fromEntries(ALL_FIELDS.map((k) => [k, inputs[k].value])) });
-
-  function setFeas(state, title, detail, fix = null) {
-    feas.dataset.state = state;
-    feasTitle.textContent = title;
-    feasDetail.textContent = detail;
-    fixBtn.hidden = fix === null;
-    fixBtn.dataset.value = fix ?? '';
-    fixBtn.textContent = fix === null ? '' : `Usar duración de ${n(fix, 1)} s`;
-    startBtn.classList.toggle('blocked', state !== 'ok');
+  function showFeasibility({ state, title, detail, fixDuration = null }) {
+    feasibilityBox.dataset.state = state;
+    feasibilityTitle.textContent = title;
+    feasibilityDetail.textContent = detail;
+    fixButton.hidden = fixDuration === null;
+    fixButton.dataset.value = fixDuration ?? '';
+    fixButton.textContent = fixDuration === null ? '' : `Usar duración de ${fixDuration.toFixed(1)} s`;
+    startButton.classList.toggle('blocked', state !== 'ok');
   }
 
-  function applyVisibility() {
-    const m = model();
-    ALL_FIELDS.forEach((k) => (inputs[k].closest('label').hidden = !isFieldVisible(m, k)));
-    $('model-hint').textContent = MODEL_HINT[m];
-    document.querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.model === m));
+  function showModel() {
+    const model = currentModel();
+    ALL_FIELDS.forEach((field) => (inputs[field].closest('label').hidden = !isFieldVisible(model, field)));
+    $('model-hint').textContent = MODEL_HINT[model];
+    modelButtons().forEach((button) => button.classList.toggle('active', button.dataset.model === model));
   }
 
-  /** Re-check everything and update the messages. Returns { ok, params, feasibility }. */
-  function evaluate() {
-    applyVisibility();
-    const res = validateParams(read());
-    ALL_FIELDS.forEach((k) => {
-      const msg = isFieldVisible(model(), k) ? res.fieldErrors[k] ?? '' : '';
-      errorEls[k].textContent = msg;
-      inputs[k].classList.toggle('invalid', !!msg);
-      inputs[k].setAttribute('aria-invalid', String(!!msg));
+  function showFieldErrors(errors) {
+    ALL_FIELDS.forEach((field) => {
+      const message = isFieldVisible(currentModel(), field) ? errors[field] ?? '' : '';
+      fieldErrors[field].textContent = message;
+      inputs[field].classList.toggle('invalid', Boolean(message));
+      inputs[field].setAttribute('aria-invalid', String(Boolean(message)));
     });
-    if (!res.ok) {
-      setFeas('bad', 'Revisa los datos', 'Corrige los campos marcados en rojo para poder iniciar.');
-      last = { ok: false, params: null };
-      return last;
+  }
+
+  function evaluate() {
+    showModel();
+    const validation = validateParams(readValues());
+    showFieldErrors(validation.fieldErrors);
+    if (!validation.ok) {
+      showFeasibility({ state: 'bad', title: 'Revisa los datos', detail: 'Corrige los campos marcados en rojo para poder iniciar.' });
+      return { ok: false, params: null };
     }
-    const f = analyzeFeasibility(res.params);
-    const d = describeFeasibility(f, res.params);
-    setFeas(d.state, d.title, d.detail, d.fixDuration ?? null);
-    last = { ok: f.ok, params: res.params, feasibility: f };
-    return last;
+    const feasibility = analyzeFeasibility(validation.params);
+    showFeasibility(describeFeasibility(feasibility, validation.params));
+    return { ok: feasibility.ok, params: validation.params };
   }
 
-  /** Called by Iniciar: configure and allow the start only when the run will end in an impact. */
-  function tryStart() {
-    const r = evaluate();
-    if (r.params) controller.configure(r.params);
-    if (!r.ok) {
-      feas.classList.remove('shake');
-      void feas.offsetWidth; // restart animation
-      feas.classList.add('shake');
-      feas.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
-    return r.ok;
+  function shakeFeasibility() {
+    feasibilityBox.classList.remove('shake');
+    void feasibilityBox.offsetWidth;
+    feasibilityBox.classList.add('shake');
+    feasibilityBox.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
-  function onEdit() {
-    const r = evaluate();
-    if (r.params) controller.configure(r.params);
+  function applyEdit() {
+    const { params } = evaluate();
+    if (params) controller.configure(params);
   }
 
-  ALL_FIELDS.forEach((k) => {
-    inputs[k].addEventListener('input', evaluate);
-    inputs[k].addEventListener('change', onEdit);
+  ALL_FIELDS.forEach((field) => {
+    inputs[field].addEventListener('input', evaluate);
+    inputs[field].addEventListener('change', applyEdit);
   });
-  fixBtn.addEventListener('click', () => {
-    inputs.duration.value = fixBtn.dataset.value;
-    onEdit();
+  fixButton.addEventListener('click', () => {
+    inputs.duration.value = fixButton.dataset.value;
+    applyEdit();
   });
 
   return {
-    fill(p) {
-      $('model').value = p.model;
-      ALL_FIELDS.forEach((k) => (inputs[k].value = p[k]));
+    fill(params) {
+      $('model').value = params.model;
+      ALL_FIELDS.forEach((field) => (inputs[field].value = params[field]));
       evaluate();
     },
-    setEnabled(on) {
-      ALL_FIELDS.forEach((k) => (inputs[k].disabled = !on));
-      $('model').disabled = !on;
-      fixBtn.disabled = !on;
-      document.querySelectorAll('.seg-btn').forEach((b) => (b.disabled = !on));
+    setEnabled(enabled) {
+      ALL_FIELDS.forEach((field) => (inputs[field].disabled = !enabled));
+      $('model').disabled = !enabled;
+      fixButton.disabled = !enabled;
+      modelButtons().forEach((button) => (button.disabled = !enabled));
     },
-    evaluate,
-    tryStart,
+    tryStart() {
+      const { ok, params } = evaluate();
+      if (params) controller.configure(params);
+      if (!ok) shakeFeasibility();
+      return ok;
+    },
   };
 }

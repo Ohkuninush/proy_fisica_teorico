@@ -2,7 +2,6 @@
 
 $ProjectPath   = $PSScriptRoot
 $WebPort       = 5173
-$Port          = $WebPort
 $Url           = "http://localhost:$WebPort"
 $ServerPidFile = Join-Path $ProjectPath ".dev-server.pid"
 $HistoryLimit  = 10

@@ -1,4 +1,3 @@
-// Procedural canvas textures (no external assets).
 import * as THREE from 'three';
 
 function canvas(w, h) {

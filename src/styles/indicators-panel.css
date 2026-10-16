@@ -1,0 +1,126 @@
+.kpi {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(8, 12, 28, 0.55);
+  border: 1px solid var(--line);
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--k, var(--cyan));
+  box-shadow: 0 0 12px var(--k, var(--cyan));
+}
+
+.kpi span {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.kpi b {
+  display: block;
+  font: 700 17px/1.25 var(--mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.kpi b small {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+.kpi.hero b {
+  font-size: 30px;
+  text-shadow: 0 0 20px rgba(76, 201, 240, 0.45);
+}
+
+.kpi.acc1 {
+  --k: var(--lime);
+}
+
+.kpi.acc2 {
+  --k: var(--pink);
+}
+
+.kpi.acc3 {
+  --k: var(--amber);
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.grid2 .kpi {
+  margin: 0;
+  padding: 8px 10px;
+}
+
+.grid2 .kpi b {
+  font-size: 14px;
+}
+
+.kpi.wide {
+  margin-top: 8px;
+  --k: var(--violet);
+}
+
+.history-btn {
+  width: 100%;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px;
+  background: linear-gradient(135deg, rgba(76, 201, 240, 0.16), rgba(247, 37, 133, 0.16));
+  border: 1px solid rgba(179, 136, 255, 0.4);
+  color: var(--text);
+}
+
+.history-btn svg {
+  color: var(--cyan);
+  filter: drop-shadow(0 0 6px rgba(76, 201, 240, 0.7));
+}
+
+.history-btn:hover:not(:disabled) {
+  box-shadow: 0 6px 26px rgba(179, 136, 255, 0.35);
+}
+
+.badge {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  font: 700 11px var(--mono);
+  background: var(--pink);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(247, 37, 133, 0.7);
+}
+
+.badge[hidden] {
+  display: none;
+}
+
+.export-btn {
+  margin-top: 8px;
+  background: linear-gradient(135deg, rgba(247, 37, 133, 0.14), rgba(255, 183, 3, 0.14));
+  border-color: rgba(255, 183, 3, 0.4);
+}
+
+.export-btn svg {
+  color: var(--amber);
+  filter: drop-shadow(0 0 6px rgba(255, 183, 3, 0.6));
+}

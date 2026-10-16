@@ -1,35 +1,37 @@
-// Stage overlay: speedometer arc and distance-to-obstacle bar. Display only.
 import { msToKmh } from '../physics/params.js';
+import { $ } from './dom.js';
 
-const ARC_LEN = Math.PI * 80; // semicircle radius 80 in the SVG
+const GAUGE_ARC_LENGTH = Math.PI * 80;
+const MIN_GAUGE_KMH = 60;
+const GAUGE_STEP_KMH = 20;
 
-/** Gauge scale from the experiment parameters (stable during a run). */
-export function gaugeMaxKmh(params) {
-  const vEnd = params.v0 + (params.model === 'MRU' ? 0 : params.a) * params.duration;
-  const peak = msToKmh(Math.max(Math.abs(params.v0), Math.abs(vEnd)));
-  return Math.max(60, Math.ceil(peak / 20) * 20);
+function gaugeMaxKmh(params) {
+  const finalSpeed = params.v0 + (params.model === 'MRU' ? 0 : params.a) * params.duration;
+  const peakKmh = msToKmh(Math.max(Math.abs(params.v0), Math.abs(finalSpeed)));
+  return Math.max(MIN_GAUGE_KMH, Math.ceil(peakKmh / GAUGE_STEP_KMH) * GAUGE_STEP_KMH);
 }
 
-export function createHud($) {
+export function createHud() {
   const arc = $('hud-arc');
-  const kmh = $('hud-kmh');
-  const max = $('hud-max');
-  const fill = $('hud-bar-fill');
-  const marker = $('hud-car');
-  const remain = $('hud-remaining');
-  arc.style.strokeDasharray = `${ARC_LEN}`;
+  const speed = $('hud-kmh');
+  const maxSpeed = $('hud-max');
+  const progressFill = $('hud-bar-fill');
+  const carMarker = $('hud-car');
+  const remaining = $('hud-remaining');
+  arc.style.strokeDasharray = `${GAUGE_ARC_LENGTH}`;
 
   return {
     update(snap) {
-      const top = gaugeMaxKmh(snap.params);
-      const k = Math.min(1, Math.abs(msToKmh(snap.v)) / top);
-      arc.style.strokeDashoffset = `${ARC_LEN * (1 - k)}`;
-      kmh.textContent = Math.abs(msToKmh(snap.v)).toFixed(0);
-      max.textContent = `${top}`;
-      const p = Math.min(1, Math.max(0, snap.traveled / snap.params.gap));
-      fill.style.width = `${p * 100}%`;
-      marker.style.left = `${p * 100}%`;
-      remain.textContent = `${snap.remaining.toFixed(1)} m`;
+      const gaugeMax = gaugeMaxKmh(snap.params);
+      const speedKmh = Math.abs(msToKmh(snap.v));
+      arc.style.strokeDashoffset = `${GAUGE_ARC_LENGTH * (1 - Math.min(1, speedKmh / gaugeMax))}`;
+      speed.textContent = speedKmh.toFixed(0);
+      maxSpeed.textContent = `${gaugeMax}`;
+
+      const progress = Math.min(1, Math.max(0, snap.traveled / snap.params.gap)) * 100;
+      progressFill.style.width = `${progress}%`;
+      carMarker.style.left = `${progress}%`;
+      remaining.textContent = `${snap.remaining.toFixed(1)} m`;
     },
   };
 }

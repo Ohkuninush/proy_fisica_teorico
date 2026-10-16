@@ -1,4 +1,3 @@
-// Which controls are usable in each simulation status. Pure, testable.
 export function controlsState(status) {
   const editable = status === 'idle' || status === 'finished' || status === 'collided';
   return {

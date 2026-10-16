@@ -1,62 +1,58 @@
-// "Exportar Reportes": pick saved experiments and download them as one PDF. DOM only.
-// The PDF module (jsPDF + charts) is loaded on demand so it never slows the first paint.
 import { msToKmh } from '../physics/params.js';
+import { el } from './dom.js';
+import { announceOverlay, onEscape, onOtherOverlayOpened } from './overlay.js';
 
-function el(tag, cls, text) {
-  const n = document.createElement(tag);
-  if (cls) n.className = cls;
-  if (text !== undefined) n.textContent = text;
-  return n;
-}
+const CLOSE_ANIMATION_MS = 250;
 
 export function createExportDialog({ store, openBtn, dialog, backdrop, list, countEl, allBox, goBtn, cancelBtn, closeBtn, statusEl }) {
+  const selected = new Set();
   let busy = false;
-  let lastFocus = null;
-  const checked = new Set();
-
-  const entries = () => store.list();
+  let previousFocus = null;
 
   function updateControls() {
-    const all = entries();
-    const n = checked.size;
-    countEl.textContent = all.length ? `${n} de ${all.length} seleccionadas` : '';
-    allBox.checked = all.length > 0 && n === all.length;
-    allBox.indeterminate = n > 0 && n < all.length;
-    allBox.disabled = busy || !all.length;
-    goBtn.disabled = busy || n === 0;
+    const total = store.list().length;
+    countEl.textContent = total ? `${selected.size} de ${total} seleccionadas` : '';
+    allBox.checked = total > 0 && selected.size === total;
+    allBox.indeterminate = selected.size > 0 && selected.size < total;
+    allBox.disabled = busy || total === 0;
+    goBtn.disabled = busy || selected.size === 0;
+  }
+
+  function entryRow(entry) {
+    const checkbox = el('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = selected.has(entry.id);
+    checkbox.disabled = busy;
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) selected.add(entry.id);
+      else selected.delete(entry.id);
+      updateControls();
+    });
+
+    const main = el('span', 'export-main');
+    main.append(el('strong', '', entry.name), el('time', '', entry.savedAt));
+    const tags = el('span', 'export-tags');
+    const statusLabel = entry.result.status === 'collided' ? 'Colisión' : 'Finalizado';
+    tags.append(el('span', 'tag', entry.params.model), el('span', `tag st-${entry.result.status}`, statusLabel));
+    const numbers = el('span', 'export-nums', `t = ${entry.result.t.toFixed(2)} s · v = ${msToKmh(entry.result.v).toFixed(1)} km/h`);
+
+    const label = el('label');
+    label.append(checkbox, main, tags, numbers);
+    const row = el('li', 'export-item');
+    row.append(label);
+    return row;
+  }
+
+  function renderEmpty() {
+    const empty = el('li', 'empty');
+    empty.append(el('strong', '', 'Aún no hay pruebas para exportar'), el('span', '', 'Completa un experimento (finalizado o con colisión) y aparecerá aquí.'));
+    list.replaceChildren(empty);
   }
 
   function render() {
-    const all = entries();
-    if (!all.length) {
-      const empty = el('li', 'empty');
-      empty.append(el('strong', '', 'Aún no hay pruebas para exportar'), el('span', '', 'Completa un experimento (finalizado o con colisión) y aparecerá aquí.'));
-      list.replaceChildren(empty);
-      updateControls();
-      return;
-    }
-    list.replaceChildren(
-      ...all.map((e) => {
-        const li = el('li', 'export-item');
-        const label = el('label');
-        const box = el('input');
-        box.type = 'checkbox';
-        box.checked = checked.has(e.id);
-        box.disabled = busy;
-        box.addEventListener('change', () => {
-          box.checked ? checked.add(e.id) : checked.delete(e.id);
-          updateControls();
-        });
-        const main = el('span', 'export-main');
-        main.append(el('strong', '', e.name), el('time', '', e.savedAt));
-        const tags = el('span', 'export-tags');
-        tags.append(el('span', 'tag', e.params.model), el('span', `tag st-${e.result.status}`, e.result.status === 'collided' ? 'Colisión' : 'Finalizado'));
-        const nums = el('span', 'export-nums', `t = ${e.result.t.toFixed(2)} s · v = ${msToKmh(e.result.v).toFixed(1)} km/h`);
-        label.append(box, main, tags, nums);
-        li.append(label);
-        return li;
-      }),
-    );
+    const entries = store.list();
+    if (entries.length) list.replaceChildren(...entries.map(entryRow));
+    else renderEmpty();
     updateControls();
   }
 
@@ -66,11 +62,11 @@ export function createExportDialog({ store, openBtn, dialog, backdrop, list, cou
   }
 
   function open() {
-    lastFocus = document.activeElement;
-    document.dispatchEvent(new CustomEvent('physicslab:drawer', { detail: 'export' }));
-    const all = entries();
-    checked.clear();
-    if (all.length) checked.add(all[0].id); // newest run pre-selected
+    previousFocus = document.activeElement;
+    announceOverlay('export');
+    const entries = store.list();
+    selected.clear();
+    if (entries.length) selected.add(entries[0].id);
     setStatus('');
     backdrop.hidden = false;
     dialog.hidden = false;
@@ -79,7 +75,7 @@ export function createExportDialog({ store, openBtn, dialog, backdrop, list, cou
       dialog.classList.add('open');
     });
     render();
-    (all.length ? goBtn : closeBtn).focus();
+    (entries.length ? goBtn : closeBtn).focus();
   }
 
   function close() {
@@ -89,34 +85,33 @@ export function createExportDialog({ store, openBtn, dialog, backdrop, list, cou
     setTimeout(() => {
       backdrop.hidden = true;
       dialog.hidden = true;
-    }, 250);
-    lastFocus?.focus?.();
+    }, CLOSE_ANIMATION_MS);
+    previousFocus?.focus?.();
   }
 
   async function generate() {
-    const chosen = entries()
-      .filter((e) => checked.has(e.id))
-      .reverse(); // oldest first, so the report reads chronologically
+    const chosen = store.list().filter((entry) => selected.has(entry.id)).reverse();
     if (!chosen.length || busy) return;
+
     busy = true;
-    const label = goBtn.textContent;
+    const buttonLabel = goBtn.textContent;
     goBtn.textContent = 'Generando…';
     setStatus('Preparando el reporte…');
     render();
     try {
-      const { buildReportPdf, reportFileName } = await import('../report/pdfReport.js');
-      const doc = await buildReportPdf(chosen, {
-        onProgress: (i, n) => setStatus(i < n ? `Armando prueba ${i + 1} de ${n}…` : 'Guardando PDF…'),
+      const { buildReportPdf, reportFileName } = await import('../report/pdf/index.js');
+      const pdf = await buildReportPdf(chosen, {
+        onProgress: (done, total) => setStatus(done < total ? `Armando prueba ${done + 1} de ${total}…` : 'Guardando PDF…'),
       });
-      const name = reportFileName(chosen);
-      doc.save(name);
-      setStatus(`Listo: se descargó ${name}`, 'ok');
-    } catch (err) {
-      console.error(err);
+      const fileName = reportFileName(chosen);
+      pdf.save(fileName);
+      setStatus(`Listo: se descargó ${fileName}`, 'ok');
+    } catch (error) {
+      console.error(error);
       setStatus('No se pudo generar el PDF. Inténtalo de nuevo.', 'error');
     } finally {
       busy = false;
-      goBtn.textContent = label;
+      goBtn.textContent = buttonLabel;
       render();
     }
   }
@@ -127,17 +122,15 @@ export function createExportDialog({ store, openBtn, dialog, backdrop, list, cou
   backdrop.addEventListener('click', close);
   goBtn.addEventListener('click', generate);
   allBox.addEventListener('change', () => {
-    entries().forEach((e) => (allBox.checked ? checked.add(e.id) : checked.delete(e.id)));
+    store.list().forEach((entry) => (allBox.checked ? selected.add(entry.id) : selected.delete(entry.id)));
     render();
   });
-  document.addEventListener('keydown', (e) => e.key === 'Escape' && close());
-  document.addEventListener('physicslab:drawer', (e) => e.detail !== 'export' && close());
-  store.subscribe(() => {
+  onEscape(close);
+  onOtherOverlayOpened('export', close);
+  store.subscribe((entries) => {
     if (dialog.hidden) return;
-    const ids = new Set(entries().map((e) => e.id));
-    [...checked].forEach((id) => !ids.has(id) && checked.delete(id));
+    const available = new Set(entries.map((entry) => entry.id));
+    selected.forEach((id) => !available.has(id) && selected.delete(id));
     render();
   });
-
-  return { open, close };
 }
