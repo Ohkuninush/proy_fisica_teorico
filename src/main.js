@@ -6,6 +6,8 @@ import { createCharts } from './ui/charts.js';
 import { createHud } from './ui/hud.js';
 import { formatIndicators } from './ui/indicators.js';
 import { controlsState } from './ui/controlsState.js';
+import { createHistoryStore } from './history/store.js';
+import { createHistoryPanel } from './ui/historyPanel.js';
 
 const $ = (id) => document.getElementById(id);
 const FIELDS = ['x0', 'v0', 'a', 'duration', 'gap'];
@@ -15,6 +17,17 @@ const effects = createEffectsManager(view);
 const charts = createCharts([$('c-x'), $('c-v'), $('c-a')]);
 const hud = createHud($);
 const controller = createController(DEFAULTS.MRU);
+const history = createHistoryStore();
+createHistoryPanel({
+  store: history,
+  drawer: $('history-drawer'),
+  backdrop: $('history-backdrop'),
+  list: $('history-list'),
+  count: $('history-count'),
+  openBtn: $('open-history'),
+  closeBtn: $('close-history'),
+  badge: $('history-badge'),
+});
 
 function fillForm(p) {
   $('model').value = p.model;
@@ -86,9 +99,13 @@ function renderUI(snap) {
 }
 
 let latest = controller.getSnapshot();
+let prevStatus = latest.status;
 controller.subscribe((snap) => {
   latest = snap;
   renderUI(snap);
+  // Auto-save once when a run ends (finished or collided).
+  if (prevStatus === 'running' && (snap.status === 'finished' || snap.status === 'collided')) history.add(snap);
+  prevStatus = snap.status;
 });
 
 // Continuous render loop: animations (beacons, particles) keep running while paused or finished.

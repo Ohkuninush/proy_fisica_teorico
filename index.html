@@ -85,6 +85,11 @@
           <div class="kpi acc2"><span>Al obstáculo</span><b id="i-remaining"></b></div>
         </div>
         <div class="kpi wide"><span>Velocidad máxima</span><b id="i-vMax"></b></div>
+        <button type="button" id="open-history" class="history-btn" aria-controls="history-drawer">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3.5 2"/></svg>
+          <span>Revisar Historial</span>
+          <b id="history-badge" class="badge" hidden>0</b>
+        </button>
       </aside>
 
       <section class="charts" aria-label="Gráficas">
@@ -93,6 +98,14 @@
         <div class="chart" style="--c:#ffb703"><h3><i class="dot"></i>Aceleración vs. tiempo<b class="live" id="l-a"></b></h3><div class="cv"><canvas id="c-a"></canvas></div></div>
       </section>
     </main>
+    <div id="history-backdrop" class="backdrop"></div>
+    <aside id="history-drawer" class="drawer" aria-hidden="true" aria-label="Historial de pruebas">
+      <header>
+        <div><h2><i class="dot c2"></i>Historial</h2><span id="history-count" class="muted-mono"></span></div>
+        <button type="button" id="close-history" class="icon-btn" aria-label="Cerrar historial">✕</button>
+      </header>
+      <ul id="history-list" class="entries"></ul>
+    </aside>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
