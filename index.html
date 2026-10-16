@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PhysicsLab 3D</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <header class="top"><h1>PhysicsLab 3D</h1><span class="sub">MRU · MRUV</span></header>
+    <main class="layout">
+      <aside class="panel config" aria-label="Configuración">
+        <h2>Experimento</h2>
+        <label>Modelo
+          <select id="model"><option value="MRU">MRU</option><option value="MRUV">MRUV</option></select>
+        </label>
+        <label>Posición inicial (m)<input id="x0" type="number" step="any" /></label>
+        <label>Velocidad inicial (m/s)<input id="v0" type="number" step="any" /></label>
+        <label id="row-a">Aceleración (m/s²)<input id="a" type="number" step="any" /></label>
+        <label>Duración (s)<input id="duration" type="number" step="any" /></label>
+        <label>Distancia al obstáculo (m)<input id="gap" type="number" step="any" /></label>
+        <label>Color del auto<input id="color" type="color" value="#e5484d" /></label>
+        <label class="check"><input id="fx" type="checkbox" checked /> Efectos visuales</label>
+        <p id="error" class="error" role="alert"></p>
+        <div class="buttons">
+          <button id="start" class="primary">Iniciar</button>
+          <button id="pause">Pausar</button>
+          <button id="reset">Reiniciar</button>
+          <button id="defaults">Valores predeterminados</button>
+        </div>
+      </aside>
+
+      <section class="stage">
+        <canvas id="view"></canvas>
+        <div id="banner" class="banner" hidden>¡Colisión detectada!</div>
+      </section>
+
+      <aside class="panel stats" aria-label="Indicadores">
+        <h2>Indicadores</h2>
+        <dl>
+          <dt>Estado</dt><dd id="i-status"></dd>
+          <dt>Tiempo</dt><dd id="i-time"></dd>
+          <dt>Posición</dt><dd id="i-position"></dd>
+          <dt>Distancia recorrida</dt><dd id="i-traveled"></dd>
+          <dt>Velocidad</dt><dd id="i-speed"></dd>
+          <dt>Velocidad (km/h)</dt><dd id="i-speedKmh"></dd>
+          <dt>Aceleración</dt><dd id="i-acceleration"></dd>
+          <dt>Distancia al obstáculo</dt><dd id="i-remaining"></dd>
+          <dt>Velocidad máxima</dt><dd id="i-vMax"></dd>
+        </dl>
+      </aside>
+
+      <section class="charts" aria-label="Gráficas">
+        <div class="chart"><h3>Posición vs. tiempo</h3><div class="cv"><canvas id="c-x"></canvas></div></div>
+        <div class="chart"><h3>Velocidad vs. tiempo</h3><div class="cv"><canvas id="c-v"></canvas></div></div>
+        <div class="chart"><h3>Aceleración vs. tiempo</h3><div class="cv"><canvas id="c-a"></canvas></div></div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
