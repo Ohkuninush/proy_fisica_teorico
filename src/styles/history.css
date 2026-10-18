@@ -1,0 +1,142 @@
+.entries {
+  list-style: none;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  flex: 1;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.entry {
+  position: relative;
+  padding: 12px 12px 10px 14px;
+  border-radius: 14px;
+  background: rgba(8, 12, 28, 0.65);
+  border: 1px solid var(--line);
+  animation: rise 0.4s both;
+}
+
+.entry::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--violet);
+  box-shadow: 0 0 10px var(--violet);
+}
+
+.entry.collided::before {
+  background: var(--pink);
+  box-shadow: 0 0 10px var(--pink);
+}
+
+.entry-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.entry-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.entry-title strong {
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name-input {
+  width: 100%;
+  font: 700 14px var(--sans);
+  color: var(--text);
+  background: rgba(6, 9, 20, 0.8);
+  border: 1px solid var(--cyan);
+  border-radius: 8px;
+  padding: 4px 8px;
+  box-shadow: 0 0 0 3px rgba(76, 201, 240, 0.18);
+}
+
+.name-input:focus {
+  outline: none;
+}
+
+.entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 8px;
+  flex-wrap: wrap;
+}
+
+.entry-meta time {
+  font: 11px var(--mono);
+  color: var(--muted);
+  margin-right: auto;
+}
+
+.entry-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0 0 8px;
+  font-size: 12px;
+}
+
+.entry-grid dt {
+  color: var(--muted);
+}
+
+.entry-grid dd {
+  margin: 0;
+  font: 600 12px var(--mono);
+  text-align: right;
+}
+
+.entry-params {
+  margin: 0 0 8px;
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+
+.comment {
+  position: relative;
+}
+
+.comment textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 44px;
+  font: 12px var(--sans);
+  color: var(--text);
+  background: rgba(6, 9, 20, 0.7);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 7px 9px 18px;
+}
+
+.comment textarea:focus {
+  outline: none;
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(76, 201, 240, 0.15);
+}
+
+.counter {
+  position: absolute;
+  right: 8px;
+  bottom: 5px;
+  font: 10px var(--mono);
+  color: var(--muted);
+  pointer-events: none;
+}

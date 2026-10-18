@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PhysicsLab 3D</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/src/styles/index.css" />
+  </head>
+  <body>
+    <div class="aurora" aria-hidden="true"></div>
+    <header class="top">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="30" height="30"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4cc9f0"/><stop offset="1" stop-color="#f72585"/></linearGradient></defs><rect x="2" y="2" width="28" height="28" rx="8" fill="none" stroke="url(#lg)" stroke-width="2.4"/><path d="M7 21 L13 13 L18 18 L25 9" fill="none" stroke="url(#lg)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h1>Physics<span>Lab</span> 3D</h1>
+      <span class="chip">MRU · MRUV</span>
+    </header>
+    <main class="layout">
+      <aside class="panel config" aria-label="Configuración">
+        <h2><i class="dot c1"></i>Experimento</h2>
+        <div class="seg" role="group" aria-label="Modelo físico">
+          <button type="button" data-model="MRU" class="seg-btn">MRU</button>
+          <button type="button" data-model="MRUV" class="seg-btn">MRUV</button>
+        </div>
+        <p id="model-hint" class="model-hint"></p>
+        <select id="model" hidden aria-label="Modelo"><option value="MRU">MRU</option><option value="MRUV">MRUV</option></select>
+        <label><span>Posición inicial <em>m</em></span><input id="x0" type="number" step="any" /></label>
+        <label><span>Velocidad inicial <em>m/s</em></span><input id="v0" type="number" step="any" /></label>
+        <label><span>Aceleración <em>m/s²</em></span><input id="a" type="number" step="any" /></label>
+        <label><span>Duración <em>s</em></span><input id="duration" type="number" step="any" /></label>
+        <label><span><b id="gap-label">Distancia al obstáculo</b> <em>m</em></span><input id="gap" type="number" step="any" /></label>
+        <div class="row2">
+          <button type="button" id="open-visuals" class="visuals-btn" aria-controls="visuals-drawer">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.7-.9 1.4-1.9-.3-1 .3-2.1 1.4-2.1H17a4 4 0 0 0 4-4c0-5-4-10-9-10Z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="10.5" cy="7" r="1.1"/><circle cx="15.5" cy="7.5" r="1.1"/></svg>
+            <span>Visuales</span>
+          </button>
+          <label class="switch"><span>Efectos</span><input id="fx" type="checkbox" checked /><i></i></label>
+        </div>
+        <div id="feas" class="feas" data-state="ok" role="status" aria-live="polite">
+          <span class="feas-icon" aria-hidden="true"></span>
+          <div class="feas-text">
+            <strong id="feas-title"></strong>
+            <span id="feas-detail"></span>
+            <button type="button" id="feas-fix" class="feas-fix" hidden></button>
+          </div>
+        </div>
+        <div class="buttons">
+          <button type="button" id="start" class="primary">▶ Iniciar</button>
+          <button type="button" id="pause">❚❚ Pausar</button>
+          <button type="button" id="reset">↺ Reiniciar</button>
+          <button type="button" id="defaults">Valores predeterminados</button>
+        </div>
+      </aside>
+
+      <section class="stage" id="stage">
+        <canvas id="view"></canvas>
+        <div class="vignette" aria-hidden="true"></div>
+        <div class="hud-top">
+          <span class="pill" id="i-status" data-status="idle"></span>
+          <div class="gauge" aria-label="Velocidad">
+            <svg viewBox="0 0 200 120" width="190" height="114">
+              <defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4cc9f0"/><stop offset="0.6" stop-color="#b388ff"/><stop offset="1" stop-color="#f72585"/></linearGradient></defs>
+              <path d="M20 100 A80 80 0 0 1 180 100" class="g-track" />
+              <path id="hud-arc" d="M20 100 A80 80 0 0 1 180 100" class="g-fill" />
+            </svg>
+            <div class="g-read"><b id="hud-kmh">0</b><small>km/h</small></div>
+            <div class="g-scale"><span>0</span><span id="hud-max">120</span></div>
+          </div>
+        </div>
+        <div class="hud-bottom">
+          <div class="track">
+            <div class="track-fill" id="hud-bar-fill"></div>
+            <div class="track-car" id="hud-car"></div>
+            <div class="track-wall"></div>
+          </div>
+          <div class="track-label"><span id="hud-remaining-label">Distancia al obstáculo</span><b id="hud-remaining">—</b></div>
+        </div>
+        <div id="banner" class="banner" hidden>
+          <strong id="banner-title">¡Colisión detectada!</strong>
+          <span id="banner-detail"></span>
+        </div>
+      </section>
+
+      <aside class="panel stats" aria-label="Indicadores">
+        <h2><i class="dot c2"></i>Indicadores</h2>
+        <div class="kpi hero"><span>Tiempo</span><b id="i-time"></b></div>
+        <div class="grid2">
+          <div class="kpi"><span>Posición</span><b id="i-position"></b></div>
+          <div class="kpi"><span>Recorrido</span><b id="i-traveled"></b></div>
+          <div class="kpi acc1"><span>Velocidad</span><b id="i-speed"></b></div>
+          <div class="kpi acc1"><span>Velocidad</span><b id="i-speedKmh"></b></div>
+          <div class="kpi acc3"><span>Aceleración</span><b id="i-acceleration"></b></div>
+          <div class="kpi acc2"><span id="kpi-remaining-label">Al obstáculo</span><b id="i-remaining"></b></div>
+        </div>
+        <div class="kpi wide"><span>Velocidad máxima</span><b id="i-vMax"></b></div>
+        <button type="button" id="open-history" class="history-btn" aria-controls="history-drawer">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3.5 2"/></svg>
+          <span>Revisar Historial</span>
+          <b id="history-badge" class="badge" hidden>0</b>
+        </button>
+        <button type="button" id="open-export" class="history-btn export-btn" aria-controls="export-dialog">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/><path d="M12 11v6"/><path d="m9.5 14.5 2.5 2.5 2.5-2.5"/></svg>
+          <span>Exportar Reportes</span>
+        </button>
+      </aside>
+
+      <section class="charts" aria-label="Gráficas">
+        <div class="chart" style="--c:#4cc9f0"><h3><i class="dot"></i>Posición vs. tiempo<b class="live" id="l-x"></b></h3><div class="cv"><canvas id="c-x"></canvas></div></div>
+        <div class="chart" style="--c:#b8f35a"><h3><i class="dot"></i>Velocidad vs. tiempo<b class="live" id="l-v"></b></h3><div class="cv"><canvas id="c-v"></canvas></div></div>
+        <div class="chart" style="--c:#ffb703"><h3><i class="dot"></i>Aceleración vs. tiempo<b class="live" id="l-a"></b></h3><div class="cv"><canvas id="c-a"></canvas></div></div>
+      </section>
+    </main>
+    <div id="export-backdrop" class="modal-backdrop" hidden></div>
+    <div id="export-dialog" class="modal" role="dialog" aria-modal="true" aria-labelledby="export-title" hidden>
+      <header>
+        <h2 id="export-title"><i class="dot c2"></i>Exportar reporte PDF</h2>
+        <button type="button" id="close-export" class="icon-btn" aria-label="Cerrar">✕</button>
+      </header>
+      <p class="modal-sub">Elige las pruebas del reporte. Cada una incluye sus indicadores, condiciones y las tres gráficas.</p>
+      <div class="export-tools">
+        <label class="check-all"><input type="checkbox" id="export-all" /> Seleccionar todas</label>
+        <span id="export-count" class="muted-mono"></span>
+      </div>
+      <ul id="export-list" class="export-list"></ul>
+      <p id="export-status" class="export-status" role="status" aria-live="polite"></p>
+      <footer>
+        <button type="button" id="export-cancel">Cancelar</button>
+        <button type="button" id="export-go" class="primary">Generar PDF</button>
+      </footer>
+    </div>
+    <div id="visuals-backdrop" class="backdrop"></div>
+    <aside id="visuals-drawer" class="drawer" aria-hidden="true" aria-label="Visuales">
+      <header>
+        <div><h2><i class="dot"></i>Visuales</h2><span class="muted-mono">Paisaje · vehículo · obstáculo · meta</span></div>
+        <button type="button" id="close-visuals" class="icon-btn" aria-label="Cerrar visuales">✕</button>
+      </header>
+      <div id="visuals-body" class="opts-scroll"></div>
+    </aside>
+    <div id="history-backdrop" class="backdrop"></div>
+    <aside id="history-drawer" class="drawer" aria-hidden="true" aria-label="Historial de pruebas">
+      <header>
+        <div><h2><i class="dot c2"></i>Historial</h2><span id="history-count" class="muted-mono"></span></div>
+        <button type="button" id="close-history" class="icon-btn" aria-label="Cerrar historial">✕</button>
+      </header>
+      <ul id="history-list" class="entries"></ul>
+    </aside>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

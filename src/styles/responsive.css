@@ -1,0 +1,42 @@
+@media (max-width: 900px) {
+  body {
+    overflow: auto;
+  }
+
+  .layout {
+    flex: none;
+    min-height: auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    grid-auto-rows: auto;
+  }
+
+  .panel {
+    overflow: visible;
+  }
+
+  .stage {
+    height: 340px;
+  }
+
+  .charts {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .chart {
+    min-height: 250px;
+  }
+
+  .cv {
+    height: 190px;
+    flex: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

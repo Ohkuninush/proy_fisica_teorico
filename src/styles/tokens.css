@@ -1,0 +1,14 @@
+:root {
+  --bg: #060914;
+  --glass: rgba(16, 22, 42, 0.68);
+  --line: rgba(140, 160, 255, 0.14);
+  --text: #e9eefc;
+  --muted: #8693b5;
+  --cyan: #4cc9f0;
+  --lime: #b8f35a;
+  --amber: #ffb703;
+  --pink: #f72585;
+  --violet: #b388ff;
+  --sans: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
