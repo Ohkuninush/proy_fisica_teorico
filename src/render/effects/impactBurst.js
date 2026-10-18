@@ -51,7 +51,7 @@ export function impactBurst(view) {
 
   return {
     update(snap, dt) {
-      if (active && snap.impact && !fired) {
+      if (active && snap.impact && !fired && !view.goalActive) {
         fired = true;
         fire(snap);
       } else if (active && !snap.impact && fired) {

@@ -1,8 +1,8 @@
 import { obstacleX } from '../../physics/collision.js';
 import { CAR_LENGTH, msToKmh } from '../../physics/params.js';
-import { OBSTACLES, VEHICLES } from '../../visuals/catalog.js';
+import { GOALS, hasGoal, OBSTACLES, VEHICLES } from '../../visuals/catalog.js';
 import { damageOf } from './damage.js';
-import { COLORS, CONTENT_WIDTH, DAMAGE_COLORS, MARGIN, mix, STATUS_STYLE } from './layout.js';
+import { COLORS, CONTENT_WIDTH, DAMAGE_COLORS, MARGIN, mix, statusStyleOf } from './layout.js';
 import { drawAccentCard, drawChip, drawHeader, drawKpiCard, drawPanel, drawSectionTitle, drawZebraRow, setFill, setInk, setStroke } from './primitives.js';
 import { fixed, toLatin1 } from './text.js';
 
@@ -33,7 +33,7 @@ function equationsFor(params) {
 }
 
 function drawTitle(doc, entry) {
-  const status = STATUS_STYLE[entry.result.status] ?? { label: entry.result.status, color: COLORS.violet };
+  const status = statusStyleOf(entry);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(19);
   setInk(doc, COLORS.ink);
@@ -46,7 +46,7 @@ function drawTitle(doc, entry) {
   drawChip(doc, status.label, status.color, MARGIN + doc.getTextWidth(meta) + 2.5, 49);
 }
 
-function drawKpis(doc, result, top) {
+function drawKpis(doc, result, top, goal) {
   const width = (CONTENT_WIDTH - 3 * KPI_GAP) / 4;
   const cards = [
     ['Tiempo', fixed(result.t), 's', COLORS.cyan],
@@ -55,7 +55,7 @@ function drawKpis(doc, result, top) {
     ['Velocidad', fixed(result.v), 'm/s', COLORS.lime],
     ['Velocidad', fixed(msToKmh(result.v), 1), 'km/h', COLORS.lime],
     ['Aceleración', fixed(result.a), 'm/s²', COLORS.amber],
-    ['Dist. al obstáculo', fixed(result.remaining), 'm', COLORS.pink],
+    [goal ? 'Dist. a la meta' : 'Dist. al obstáculo', fixed(result.remaining), 'm', COLORS.pink],
     ['Velocidad máxima', fixed(result.vMax), 'm/s', COLORS.violet],
   ];
   cards.forEach(([label, value, unit, color], i) => {
@@ -102,19 +102,21 @@ function drawOutcome(doc, entry, top) {
   const impact = result.impact;
   const damage = damageOf(entry);
   const height = damage ? 20 : 13;
-  const tone = impact ? COLORS.pink : COLORS.violet;
+  const goal = hasGoal(entry.visuals);
+  const tone = impact ? (goal ? COLORS.lime : COLORS.pink) : COLORS.violet;
 
   drawAccentCard(doc, { x: MARGIN, y: top, width: CONTENT_WIDTH, height, accent: tone, fill: mix(tone, COLORS.white, 0.9), stroke: mix(tone, COLORS.white, 0.5) });
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
   setInk(doc, tone);
-  doc.text(impact ? 'Impacto detectado' : 'Experimento finalizado sin colisión', MARGIN + 6, top + 5.4);
+  doc.text(impact ? (goal ? 'Meta alcanzada' : 'Impacto detectado') : (goal ? 'Experimento finalizado sin llegar a la meta' : 'Experimento finalizado sin colisión'), MARGIN + 6, top + 5.4);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.6);
   setInk(doc, COLORS.ink);
+  const target = goal ? 'la meta' : 'el obstáculo';
   const sentence = impact
-    ? `El frente del vehículo alcanzó el obstáculo en t = ${fixed(impact.t)} s con v = ${fixed(impact.v)} m/s (${fixed(msToKmh(impact.v), 1)} km/h).`
-    : `Terminó al cumplirse la duración (${fixed(params.duration, 1)} s); el obstáculo quedó a ${fixed(result.remaining)} m.`;
+    ? `El frente del vehículo ${goal ? 'cruzó la meta' : 'alcanzó el obstáculo'} en t = ${fixed(impact.t)} s con v = ${fixed(impact.v)} m/s (${fixed(msToKmh(impact.v), 1)} km/h).`
+    : `Terminó al cumplirse la duración (${fixed(params.duration, 1)} s); ${target} quedó a ${fixed(result.remaining)} m.`;
   doc.text(sentence, MARGIN + 6, top + 10);
   if (damage) drawDamageScale(doc, damage, top + 15.2);
   return top + height;
@@ -122,6 +124,7 @@ function drawOutcome(doc, entry, top) {
 
 function conditionRows(entry) {
   const { params } = entry;
+  const goal = hasGoal(entry.visuals);
   const nameOf = (list, id) => list.find((item) => item.id === id)?.name ?? 'No registrado';
   const speed = `${fixed(params.v0)} m/s  (${fixed(msToKmh(params.v0), 1)} km/h)`;
   const acceleration = params.model === 'MRU' ? '0 m/s²  (constante)' : `${fixed(params.a)} m/s²`;
@@ -135,10 +138,10 @@ function conditionRows(entry) {
     ],
     [
       ['Duración máxima', `${fixed(params.duration, 1)} s`],
-      ['Distancia al obstáculo', `${fixed(params.gap)} m`],
-      ['Cara del obstáculo', `x = ${fixed(obstacleX(params))} m`],
+      [goal ? 'Distancia a la meta' : 'Distancia al obstáculo', `${fixed(params.gap)} m`],
+      [goal ? 'Línea de meta' : 'Cara del obstáculo', `x = ${fixed(obstacleX(params))} m`],
       ['Largo del vehículo', `${fixed(CAR_LENGTH, 1)} m`],
-      ['Obstáculo', nameOf(OBSTACLES, entry.visuals?.obstacle)],
+      goal ? ['Meta', nameOf(GOALS, entry.visuals.goal)] : ['Obstáculo', nameOf(OBSTACLES, entry.visuals?.obstacle)],
     ],
   ];
 }
@@ -199,7 +202,7 @@ export function drawResultsPage(doc, entry, dateText) {
   drawHeader(doc, 'Reporte de experimento', dateText);
   drawTitle(doc, entry);
 
-  const kpisBottom = drawKpis(doc, entry.result, drawSectionTitle(doc, 'Resultados', 62) + 3);
+  const kpisBottom = drawKpis(doc, entry.result, drawSectionTitle(doc, 'Resultados', 62) + 3, hasGoal(entry.visuals));
   const outcomeBottom = drawOutcome(doc, entry, kpisBottom + 7);
   const conditionsBottom = drawConditions(doc, entry, drawSectionTitle(doc, 'Condiciones iniciales', outcomeBottom + 10) + 3);
   const equationsBottom = drawEquations(doc, entry.params, drawSectionTitle(doc, 'Ecuaciones del modelo', conditionsBottom + 9) + 3);

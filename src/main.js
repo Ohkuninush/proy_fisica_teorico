@@ -10,14 +10,20 @@ import { createCharts } from './ui/charts.js';
 import { $ } from './ui/dom.js';
 import { createExperimentForm } from './ui/experimentForm.js';
 import { createHud } from './ui/hud.js';
+import { hasGoal } from './visuals/catalog.js';
 
 const MAX_FRAME_S = 0.05;
 
 const view = createScene($('view'));
 const effects = createEffectsManager(view);
 const controller = createController(DEFAULTS.MRU);
-const form = createExperimentForm({ controller });
-const visualsStore = setupVisuals(view);
+const visualsStore = setupVisuals(view, {
+  onGoalChange() {
+    form.refresh();
+    dashboard.render(latest);
+  },
+});
+const form = createExperimentForm({ controller, isGoal: () => hasGoal(visualsStore.get()) });
 const historyStore = setupHistory();
 const dashboard = createDashboard({
   controller,

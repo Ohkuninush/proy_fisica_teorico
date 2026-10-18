@@ -1,4 +1,5 @@
 import { msToKmh } from '../physics/params.js';
+import { hasGoal } from '../visuals/catalog.js';
 import { el } from './dom.js';
 import { announceOverlay, onEscape, onOtherOverlayOpened } from './overlay.js';
 
@@ -32,7 +33,7 @@ export function createExportDialog({ store, openBtn, dialog, backdrop, list, cou
     const main = el('span', 'export-main');
     main.append(el('strong', '', entry.name), el('time', '', entry.savedAt));
     const tags = el('span', 'export-tags');
-    const statusLabel = entry.result.status === 'collided' ? 'Colisión' : 'Finalizado';
+    const statusLabel = entry.result.status === 'collided' ? (hasGoal(entry.visuals) ? 'Meta' : 'Colisión') : 'Finalizado';
     tags.append(el('span', 'tag', entry.params.model), el('span', `tag st-${entry.result.status}`, statusLabel));
     const numbers = el('span', 'export-nums', `t = ${entry.result.t.toFixed(2)} s · v = ${msToKmh(entry.result.v).toFixed(1)} km/h`);
 

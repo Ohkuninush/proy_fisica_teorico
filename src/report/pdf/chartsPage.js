@@ -1,4 +1,5 @@
 import { CHART_HEIGHT, CHART_WIDTH, renderChartPng, SERIES_STYLE } from '../chartImages.js';
+import { hasGoal } from '../../visuals/catalog.js';
 import { buildSeries } from '../series.js';
 import { COLORS, CONTENT_WIDTH, MARGIN } from './layout.js';
 import { drawHeader, drawSectionTitle, setInk, setStroke } from './primitives.js';
@@ -14,8 +15,8 @@ const IMAGE_HEIGHT = (CONTENT_WIDTH * CHART_HEIGHT) / CHART_WIDTH;
 
 const hexToRgb = (hex) => [1, 3, 5].map((start) => parseInt(hex.slice(start, start + 2), 16));
 
-function captionsFor(params, series) {
-  const impact = series.impactTime !== null ? ` El último punto marca el impacto (t = ${fixed(series.impactTime)} s).` : '';
+function captionsFor(params, series, goal) {
+  const impact = series.impactTime !== null ? ` El último punto marca ${goal ? 'la llegada a la meta' : 'el impacto'} (t = ${fixed(series.impactTime)} s).` : '';
   if (params.model === 'MRU') {
     return {
       x: `Recta: el vehículo avanza con rapidez constante; la pendiente es la velocidad (v0 = ${fixed(params.v0, 1)} m/s).${impact}`,
@@ -35,7 +36,7 @@ function captionsFor(params, series) {
 
 export function drawChartsPage(doc, entry, dateText) {
   const series = buildSeries(entry.params, SAMPLES);
-  const captions = captionsFor(entry.params, series);
+  const captions = captionsFor(entry.params, series, hasGoal(entry.visuals));
   drawHeader(doc, `Gráficas  ·  ${entry.name}`, dateText);
 
   let y = 41;

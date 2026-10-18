@@ -2,6 +2,7 @@ import { msToKmh } from '../physics/params.js';
 import { $ } from '../ui/dom.js';
 import { controlsState } from '../ui/controlsState.js';
 import { formatIndicators } from '../ui/indicators.js';
+import { hasGoal } from '../visuals/catalog.js';
 import { damageLevel, levelInfo } from '../visuals/damage.js';
 
 const VALUE_WITH_UNIT = /^(\S+)\s(.+)$/;
@@ -24,8 +25,8 @@ function restartAnimation(element, className) {
 export function createDashboard({ controller, form, hud, charts, visualsStore }) {
   let hadImpact = false;
 
-  function showIndicators(snap) {
-    Object.entries(formatIndicators(snap)).forEach(([key, text]) => {
+  function showIndicators(snap, goal) {
+    Object.entries(formatIndicators(snap, { goal })).forEach(([key, text]) => {
       if (key === 'status') {
         $('i-status').textContent = text;
         $('i-status').dataset.status = snap.status;
@@ -38,14 +39,23 @@ export function createDashboard({ controller, form, hud, charts, visualsStore })
     setValueWithUnit($('l-a'), `${snap.a.toFixed(1)} m/s²`);
   }
 
-  function showCollision(snap) {
+  function showTerms(goal) {
+    $('gap-label').textContent = goal ? 'Distancia a la meta' : 'Distancia al obstáculo';
+    $('hud-remaining-label').textContent = goal ? 'Distancia a la meta' : 'Distancia al obstáculo';
+    $('kpi-remaining-label').textContent = goal ? 'A la meta' : 'Al obstáculo';
+  }
+
+  function showCollision(snap, goal) {
     const { impact } = snap;
     $('banner').hidden = !impact;
     if (impact) {
       const speedKmh = msToKmh(impact.v);
+      const reading = `t = ${impact.t.toFixed(2)} s · v = ${impact.v.toFixed(1)} m/s (${speedKmh.toFixed(1)} km/h)`;
       const level = damageLevel(speedKmh, visualsStore.get().vehicle);
-      $('banner-detail').textContent = `t = ${impact.t.toFixed(2)} s · v = ${impact.v.toFixed(1)} m/s (${speedKmh.toFixed(1)} km/h) · Daño: nivel ${level} (${levelInfo(level).name})`;
-      if (!hadImpact) restartAnimation($('stage'), 'hit');
+      $('banner').dataset.kind = goal ? 'goal' : 'crash';
+      $('banner-title').textContent = goal ? '¡Meta alcanzada!' : '¡Colisión detectada!';
+      $('banner-detail').textContent = goal ? reading : `${reading} · Daño: nivel ${level} (${levelInfo(level).name})`;
+      if (!hadImpact && !goal) restartAnimation($('stage'), 'hit');
     }
     hadImpact = Boolean(impact);
   }
@@ -62,8 +72,10 @@ export function createDashboard({ controller, form, hud, charts, visualsStore })
 
   return {
     render(snap) {
-      showIndicators(snap);
-      showCollision(snap);
+      const goal = hasGoal(visualsStore.get());
+      showTerms(goal);
+      showIndicators(snap, goal);
+      showCollision(snap, goal);
       showControls(snap);
       hud.update(snap);
       charts.update(controller.getHistory());

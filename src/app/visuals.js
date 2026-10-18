@@ -4,13 +4,17 @@ import { createVisualsPanel } from '../ui/visualsPanel.js';
 import { defaultColorFor } from '../visuals/catalog.js';
 import { createVisualsStore } from '../visuals/store.js';
 
-export function setupVisuals(view) {
+export function setupVisuals(view, { onGoalChange } = {}) {
   const store = createVisualsStore();
 
   const appliers = {
     view: (id) => view.setView(id),
     scenery: (id) => view.setScenery(id),
     obstacle: (id) => view.setObstacle(id),
+    goal: (id) => {
+      view.setGoal(id);
+      onGoalChange?.();
+    },
   };
 
   const panel = createVisualsPanel({
@@ -30,8 +34,8 @@ export function setupVisuals(view) {
         store.set({ vehicle: id, color });
         return;
       }
-      appliers[group](id);
       store.set({ [group]: id });
+      appliers[group](id);
     },
   });
 
@@ -40,6 +44,7 @@ export function setupVisuals(view) {
   view.setScenery(saved.scenery);
   view.setVehicle(saved.vehicle);
   view.setObstacle(saved.obstacle);
+  view.setGoal(saved.goal);
   view.setCarColor(saved.color);
 
   $('color').addEventListener('input', () => {

@@ -11,7 +11,7 @@ export function crashDamage(view) {
 
   return {
     update(snap, dt) {
-      if (active && snap.impact && !fired) {
+      if (active && snap.impact && !fired && !view.goalActive) {
         fired = true;
         const level = impactLevel(view, snap);
         if (level > 0) view.crash.trigger({ level, speedKmh: impactSpeedKmh(snap) });

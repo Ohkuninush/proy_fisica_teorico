@@ -33,7 +33,17 @@ export const OBSTACLES = [
   { id: 'tree', name: 'Árbol' },
 ];
 
-export const DEFAULT_VISUALS = Object.freeze({ view: 'side', scenery: 'city', vehicle: 'sedan', obstacle: 'barrier', color: '#e5484d' });
+export const NO_GOAL = 'none';
+
+export const GOALS = [
+  { id: NO_GOAL, name: 'Sin meta', emoji: '🚧', desc: 'El vehículo choca', swatch: 'linear-gradient(135deg,#2a2a35,#5a5a6e)' },
+  { id: 'checkered', name: 'Cuadros clásica', emoji: '🏁', desc: 'Arco con bandera a cuadros', swatch: 'linear-gradient(135deg,#f5f5f5,#101018)' },
+  { id: 'inflatable', name: 'Arco inflable', emoji: '🎈', desc: 'Arco de maratón', swatch: 'linear-gradient(135deg,#e5384a,#2f6df0)' },
+  { id: 'neon', name: 'Neón futurista', emoji: '⚡', desc: 'Portal de luz', swatch: 'linear-gradient(135deg,#00e5ff,#ff3cdc)' },
+  { id: 'ribbon', name: 'Cinta de llegada', emoji: '🎀', desc: 'Se rompe al cruzar', swatch: 'linear-gradient(135deg,#e5384a,#ffffff)' },
+];
+
+export const DEFAULT_VISUALS = Object.freeze({ view: 'side', scenery: 'city', vehicle: 'sedan', obstacle: 'barrier', goal: NO_GOAL, color: '#e5484d' });
 
 const has = (list, id) => list.some((o) => o.id === id);
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -45,8 +55,11 @@ export function normalizeVisuals(input) {
     scenery: has(SCENERIES, v.scenery) ? v.scenery : DEFAULT_VISUALS.scenery,
     vehicle: has(VEHICLES, v.vehicle) ? v.vehicle : DEFAULT_VISUALS.vehicle,
     obstacle: has(OBSTACLES, v.obstacle) ? v.obstacle : DEFAULT_VISUALS.obstacle,
+    goal: has(GOALS, v.goal) ? v.goal : DEFAULT_VISUALS.goal,
     color: typeof v.color === 'string' && HEX.test(v.color) ? v.color : DEFAULT_VISUALS.color,
   };
 }
 
 export const defaultColorFor = (vehicleId) => VEHICLES.find((v) => v.id === vehicleId)?.color ?? DEFAULT_VISUALS.color;
+
+export const hasGoal = (visuals) => Boolean(visuals?.goal) && visuals.goal !== NO_GOAL;

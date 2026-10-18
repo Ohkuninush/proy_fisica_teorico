@@ -1,4 +1,5 @@
 import { MAX_COMMENT, MAX_NAME } from '../history/store.js';
+import { hasGoal } from '../visuals/catalog.js';
 import { el, iconButton } from './dom.js';
 import { formatIndicators } from './indicators.js';
 import { createDrawer } from './overlay.js';
@@ -10,8 +11,8 @@ const TRASH_ICON = `<svg ${SVG_ATTRIBUTES}><path d="M3 6h18"/><path d="M8 6V4h8v
 const EMPTY_TITLE = 'Aún no hay pruebas';
 const EMPTY_HINT = 'Cada experimento que termine (finalizado o con colisión) se guarda aquí automáticamente.';
 
-const entryParameters = ({ x0, v0, a, duration, gap, model }) =>
-  `x₀ ${x0} m · v₀ ${v0} m/s${model === 'MRUV' ? ` · a ${a} m/s²` : ''} · ${duration} s · obstáculo ${gap} m`;
+const entryParameters = ({ params: { x0, v0, a, duration, gap, model }, visuals }) =>
+  `x₀ ${x0} m · v₀ ${v0} m/s${model === 'MRUV' ? ` · a ${a} m/s²` : ''} · ${duration} s · ${hasGoal(visuals) ? 'meta' : 'obstáculo'} ${gap} m`;
 
 export function createHistoryPanel({ store, drawer, backdrop, list, count, openBtn, closeBtn, badge }) {
   createDrawer({ id: 'history', drawer, backdrop, openButton: openBtn, closeButton: closeBtn });
@@ -65,14 +66,14 @@ export function createHistoryPanel({ store, drawer, backdrop, list, count, openB
     return meta;
   }
 
-  function entryGrid(indicators) {
+  function entryGrid(entry, indicators) {
     const rows = [
       ['Tiempo', indicators.time],
       ['Posición', indicators.position],
       ['Recorrido', indicators.traveled],
       ['Velocidad', `${indicators.speed} · ${indicators.speedKmh}`],
       ['Aceleración', indicators.acceleration],
-      ['Al obstáculo', indicators.remaining],
+      [hasGoal(entry.visuals) ? 'A la meta' : 'Al obstáculo', indicators.remaining],
       ['Vel. máxima', indicators.vMax],
     ];
     const grid = el('dl', 'entry-grid');
@@ -100,9 +101,9 @@ export function createHistoryPanel({ store, drawer, backdrop, list, count, openB
   }
 
   function card(entry) {
-    const indicators = formatIndicators({ ...entry.result, params: entry.params });
+    const indicators = formatIndicators({ ...entry.result, params: entry.params }, { goal: hasGoal(entry.visuals) });
     const item = el('li', `entry ${entry.result.status}`);
-    item.append(entryHeader(entry), entryMeta(entry, indicators), entryGrid(indicators), el('p', 'entry-params', entryParameters(entry.params)), commentBox(entry));
+    item.append(entryHeader(entry), entryMeta(entry, indicators), entryGrid(entry, indicators), el('p', 'entry-params', entryParameters(entry)), commentBox(entry));
     return item;
   }
 

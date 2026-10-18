@@ -8,9 +8,11 @@ const STATUS_LABEL = {
   collided: 'Colisión',
 };
 
+const GOAL_STATUS_LABEL = 'Meta alcanzada';
+
 const fixed = (value, digits = 2) => (Number.isFinite(value) ? value.toFixed(digits) : '—');
 
-export function formatIndicators(snap) {
+export function formatIndicators(snap, { goal = false } = {}) {
   return {
     time: `${fixed(snap.t)} s`,
     position: `${fixed(snap.x)} m`,
@@ -20,6 +22,6 @@ export function formatIndicators(snap) {
     acceleration: `${fixed(snap.a)} m/s²`,
     remaining: `${fixed(snap.remaining)} m`,
     vMax: `${fixed(snap.vMax)} m/s (${fixed(msToKmh(snap.vMax), 1)} km/h)`,
-    status: STATUS_LABEL[snap.status] ?? snap.status,
+    status: goal && snap.status === 'collided' ? GOAL_STATUS_LABEL : (STATUS_LABEL[snap.status] ?? snap.status),
   };
 }

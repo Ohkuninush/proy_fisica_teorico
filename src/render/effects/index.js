@@ -2,10 +2,11 @@ import { cameraFeel } from './cameraFeel.js';
 import { crashDamage } from './crashDamage.js';
 import { dust } from './dust.js';
 import { headlightBeams } from './headlightBeams.js';
+import { finishLine } from './finishLine.js';
 import { impactBurst } from './impactBurst.js';
 import { windStreaks } from './windStreaks.js';
 
-const DEFAULT_EFFECTS = [windStreaks, dust, headlightBeams, impactBurst, crashDamage, cameraFeel];
+const DEFAULT_EFFECTS = [windStreaks, dust, headlightBeams, impactBurst, crashDamage, finishLine, cameraFeel];
 
 export function createEffectsManager(view, factories = DEFAULT_EFFECTS) {
   const effects = factories.map((create) => create(view));

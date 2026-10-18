@@ -5,10 +5,12 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CAR_LENGTH } from '../physics/params.js';
+import { NO_GOAL } from '../visuals/catalog.js';
 import { createCameraDirector } from './cameraDirector.js';
 import { createCrash } from './crash/index.js';
 import { LANE_Z } from './environment/constants.js';
 import { createEnvironment } from './environment/index.js';
+import { createGoal } from './goals/index.js';
 import { createObstacle } from './obstacles/index.js';
 import { createVehicle } from './vehicles/index.js';
 
@@ -16,6 +18,7 @@ const HEADLIGHT_INTENSITY = 900;
 const GLARE_HEADLIGHT_INTENSITY = 220;
 const GLARE_BLOOM_FACTOR = 0.45;
 const DEFAULT_COLOR = '#e5484d';
+const ROLLOUT_FRAMING = 0.5;
 
 function createRenderer(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -78,13 +81,15 @@ export function createScene(canvas) {
   const carRoot = new THREE.Group();
   const obstacleRoot = new THREE.Group();
   carRoot.position.z = obstacleRoot.position.z = LANE_Z;
-  scene.add(carRoot, obstacleRoot);
+  const goalRoot = new THREE.Group();
+  scene.add(carRoot, obstacleRoot, goalRoot);
   const headlight = createHeadlight(carRoot);
 
   const { composer, bloom } = createPostProcessing(renderer, scene, camera);
 
   let vehicle = null;
   let obstacle = null;
+  let goal = null;
   let vehicleKind = 'sedan';
   let obstacleKind = 'barrier';
   let color = DEFAULT_COLOR;
@@ -106,7 +111,12 @@ export function createScene(canvas) {
       return vehicleKind;
     },
     getVehicle: () => vehicle,
+    rollout: 0,
+    get goalActive() {
+      return goal !== null;
+    },
     getObstacle: () => obstacle,
+    getGoal: () => goal,
     setView: (id) => director.setView(id),
     setBloom(enabled) {
       bloomEnabled = enabled;
@@ -134,6 +144,16 @@ export function createScene(canvas) {
       obstacleKind = kind;
       obstacle = createObstacle(kind);
       obstacleRoot.add(obstacle.group);
+    },
+    setGoal(kind) {
+      if (goal) {
+        goalRoot.remove(goal.group);
+        goal.dispose();
+      }
+      goal = kind === NO_GOAL ? null : createGoal(kind);
+      if (goal) goalRoot.add(goal.group);
+      obstacleRoot.visible = !goal;
+      view.rollout = 0;
     },
     restoreModels() {
       view.setVehicle(vehicleKind);
@@ -170,19 +190,22 @@ export function createScene(canvas) {
     },
     update(snap) {
       latestSnap = snap;
-      carRoot.position.x = snap.x;
-      vehicle?.pose(snap.x, snap.a);
-      obstacleRoot.position.x = snap.obstacleX;
-      const centerX = snap.x + CAR_LENGTH / 2;
+      const carX = snap.x + view.rollout;
+      carRoot.position.x = carX;
+      vehicle?.pose(carX, snap.a);
+      obstacleRoot.position.x = goalRoot.position.x = snap.obstacleX;
+      const centerX = carX + CAR_LENGTH / 2;
       sun.position.set(centerX - 14, 24, 14);
       sun.target.position.set(centerX, 0, 0);
     },
     render(time) {
       const snap = latestSnap;
-      const centerX = snap.x + CAR_LENGTH / 2;
+      const carX = snap.x + view.rollout;
+      const centerX = carX + CAR_LENGTH / 2;
       obstacle?.animate(time);
+      goal?.animate(time);
 
-      const rig = director.frame({ carX: snap.x, centerX, obstacleX: snap.obstacleX, snap, time, eye: view.vehicleMeta.eye ?? [3.4, 1.3] }, time);
+      const rig = director.frame({ carX, centerX: centerX - view.rollout * ROLLOUT_FRAMING, obstacleX: snap.obstacleX, snap, time, eye: view.vehicleMeta.eye ?? [3.4, 1.3] }, time);
       const hasGlare = rig.beams === false;
       headlight.intensity = headlightIntensity(view.crash.level, hasGlare);
       bloom.strength = hasGlare ? themeBloom * GLARE_BLOOM_FACTOR : themeBloom;
@@ -197,6 +220,7 @@ export function createScene(canvas) {
   view.setScenery('city');
   view.setVehicle('sedan');
   view.setObstacle('barrier');
+  view.setGoal(NO_GOAL);
   view.resize();
   return view;
 }

@@ -2,11 +2,12 @@ import { analyzeFeasibility } from '../physics/feasibility.js';
 import { LIMITS, validateParams } from '../physics/params.js';
 import { $, el } from './dom.js';
 import { describeFeasibility } from './feasibilityText.js';
+import { toGoalWording } from './wording.js';
 import { ALL_FIELDS, isFieldVisible, MODEL_HINT } from './fieldRules.js';
 
 const modelButtons = () => document.querySelectorAll('.seg-btn');
 
-export function createExperimentForm({ controller }) {
+export function createExperimentForm({ controller, isGoal = () => false }) {
   const inputs = Object.fromEntries(ALL_FIELDS.map((field) => [field, $(field)]));
   const fieldErrors = {};
   const feasibilityBox = $('feas');
@@ -66,7 +67,8 @@ export function createExperimentForm({ controller }) {
       return { ok: false, params: null };
     }
     const feasibility = analyzeFeasibility(validation.params);
-    showFeasibility(describeFeasibility(feasibility, validation.params));
+    const text = describeFeasibility(feasibility, validation.params);
+    showFeasibility(isGoal() ? { ...text, title: toGoalWording(text.title), detail: toGoalWording(text.detail) } : text);
     return { ok: feasibility.ok, params: validation.params };
   }
 
@@ -103,6 +105,7 @@ export function createExperimentForm({ controller }) {
       fixButton.disabled = !enabled;
       modelButtons().forEach((button) => (button.disabled = !enabled));
     },
+    refresh: evaluate,
     tryStart() {
       const { ok, params } = evaluate();
       if (params) controller.configure(params);

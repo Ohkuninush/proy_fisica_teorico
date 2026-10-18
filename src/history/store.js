@@ -21,7 +21,7 @@ function buildEntry(snap, seq, now, visuals) {
     savedAt: formatTimestamp(now),
     name: `Prueba ${seq}`,
     comment: '',
-    visuals: visuals ? { vehicle: visuals.vehicle, obstacle: visuals.obstacle } : null,
+    visuals: visuals ? { vehicle: visuals.vehicle, obstacle: visuals.obstacle, goal: visuals.goal } : null,
     params: { ...snap.params },
     result: {
       status: snap.status,

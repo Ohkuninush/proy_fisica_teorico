@@ -1,4 +1,4 @@
-import { OBSTACLES, SCENERIES, VEHICLES, VIEWS } from '../visuals/catalog.js';
+import { GOALS, OBSTACLES, SCENERIES, VEHICLES, VIEWS } from '../visuals/catalog.js';
 import { el } from './dom.js';
 import { createDrawer } from './overlay.js';
 
@@ -87,6 +87,7 @@ export function createVisualsPanel({ store, drawer, backdrop, body, openBtn, clo
     createSection({ title: 'Paisaje', hint: 'fondo de la pista', group: 'scenery', options: SCENERIES, preview: swatch }),
     vehicleSection,
     createSection({ title: 'Obstáculo', hint: 'lo que hay al final', group: 'obstacle', options: OBSTACLES, preview: thumbnailSlot(thumbnailImages.obstacle) }),
+    createSection({ title: 'Meta', hint: 'reemplaza al obstáculo', group: 'goal', options: GOALS, preview: swatch }),
   );
 
   createDrawer({
@@ -99,7 +100,7 @@ export function createVisualsPanel({ store, drawer, backdrop, body, openBtn, clo
   });
 
   const saved = store.get();
-  ['view', 'scenery', 'vehicle', 'obstacle'].forEach((group) => select(group, saved[group]));
+  ['view', 'scenery', 'vehicle', 'obstacle', 'goal'].forEach((group) => select(group, saved[group]));
   color.input.value = saved.color;
 
   return {

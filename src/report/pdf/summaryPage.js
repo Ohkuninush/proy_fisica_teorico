@@ -1,6 +1,6 @@
 import { msToKmh } from '../../physics/params.js';
 import { damageOf } from './damage.js';
-import { COLORS, CONTENT_WIDTH, MARGIN, STATUS_STYLE } from './layout.js';
+import { COLORS, CONTENT_WIDTH, GOAL_STATUS, MARGIN, STATUS_STYLE, statusStyleOf } from './layout.js';
 import { drawHeader, drawSectionTitle, drawZebraRow, setFill, setInk } from './primitives.js';
 import { fixed, toLatin1 } from './text.js';
 
@@ -33,7 +33,7 @@ function rowCells(entry, index) {
     toLatin1(entry.name),
     entry.savedAt,
     entry.params.model,
-    STATUS_STYLE[entry.result.status]?.label ?? entry.result.status,
+    statusStyleOf(entry).label,
     damage ? `Nivel ${damage.level}` : '-',
     fixed(entry.result.t),
     fixed(msToKmh(entry.result.v), 1),
@@ -74,7 +74,7 @@ function drawRow(doc, cells, y, index) {
   COLUMNS.forEach((column, i) => {
     const isStatus = i === STATUS_COLUMN;
     if (isStatus) {
-      setInk(doc, cells[i] === STATUS_STYLE.collided.label ? COLORS.pink : COLORS.violet);
+      setInk(doc, cells[i] === STATUS_STYLE.collided.label ? COLORS.pink : cells[i] === GOAL_STATUS.label ? COLORS.lime : COLORS.violet);
       doc.setFont('helvetica', 'bold');
     }
     drawCell(doc, fitText(doc, cells[i], columnWidths[i]), column, x, columnWidths[i], y + 5.4);
