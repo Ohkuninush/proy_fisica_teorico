@@ -1,9 +1,12 @@
 ﻿[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $ProjectPath   = $PSScriptRoot
-$WebPort       = 5173
+$WebPort       = 5190
 $Url           = "http://localhost:$WebPort"
 $ServerPidFile = Join-Path $ProjectPath ".dev-server.pid"
+$TunnelPidFile = Join-Path $ProjectPath ".dev-tunnel.pid"
+$TunnelLogFile = Join-Path $ProjectPath ".dev-tunnel.log"
+$TunnelTimeoutS = 40
 $HistoryLimit  = 10
 $ReadyTimeoutS = 30
 
@@ -143,7 +146,16 @@ function Test-PortListening([int]$P) {
     return [bool](Get-NetTCPConnection -LocalPort $P -State Listen -ErrorAction SilentlyContinue)
 }
 
-function Test-ServerPort { return (Test-PortListening $WebPort) }
+function Get-PortOwners([int]$P) {
+    Get-NetTCPConnection -LocalPort $P -State Listen -ErrorAction SilentlyContinue |
+        ForEach-Object { Get-CimInstance Win32_Process -Filter "ProcessId=$($_.OwningProcess)" -ErrorAction SilentlyContinue }
+}
+
+function Get-OwnPortOwners([int]$P) {
+    Get-PortOwners $P | Where-Object { $_.CommandLine -and $_.CommandLine.ToLower().Contains($ProjectPath.ToLower()) }
+}
+
+function Test-ServerPort { return [bool](Get-OwnPortOwners $WebPort) }
 
 function Get-TrackedPid([string]$File) {
     if (-not (Test-Path $File)) { return $null }
@@ -162,7 +174,58 @@ function Start-One([string]$Name, [string]$Exe, [string[]]$ProcArgs, [string]$Di
     Add-History "$Name lanzado (PID $($proc.Id))" "Cyan"
 }
 
+function Update-SessionPath {
+    $machine = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    $user = [Environment]::GetEnvironmentVariable("Path", "User")
+    $env:Path = "$machine;$user"
+}
+
+function Test-Npm { return [bool](Get-Command npm.cmd -ErrorAction SilentlyContinue) }
+
+function Test-Dependencies { return (Test-Path (Join-Path $ProjectPath "node_modules\vite")) }
+
+function Install-Node {
+    Add-History "Instalando Node.js LTS con winget..." "Yellow"
+    Write-Host ""
+    & winget.exe install --id OpenJS.NodeJS.LTS -e --accept-source-agreements --accept-package-agreements 2>&1 | ForEach-Object { Write-Host "  $_" }
+    Update-SessionPath
+    return (Test-Npm)
+}
+
+function Install-Dependencies {
+    if (-not (Get-Command winget.exe -ErrorAction SilentlyContinue) -and -not (Test-Npm)) {
+        Add-History "Falta Node.js y winget: instala Node.js LTS desde nodejs.org" "Red"
+        return $false
+    }
+    if (-not (Test-Npm) -and -not (Install-Node)) {
+        Add-History "No se pudo instalar Node.js (instalalo desde nodejs.org)" "Red"
+        return $false
+    }
+    $major = [int](((& node.exe -v) -replace "^v", "") -split "\.")[0]
+    if ($major -lt 20) { Add-History "Node.js $major es antiguo: se requiere 20 o superior" "Red"; return $false }
+
+    Add-History "Instalando paquetes del proyecto (npm install)..." "Yellow"
+    Write-Host ""
+    Push-Location $ProjectPath
+    try { & npm.cmd install 2>&1 | ForEach-Object { Write-Host "  $_" } } finally { Pop-Location }
+    if (-not (Test-Dependencies)) { Add-History "npm install fallo: revisa la salida" "Red"; return $false }
+
+    if (-not (Get-DevTunnel)) { [void](Install-DevTunnel) }
+    Add-History "Dependencias listas (Node $major, paquetes$(if (Get-DevTunnel) { ', devtunnel' }))" "Green"
+    return $true
+}
+
+function Confirm-Dependencies {
+    if (Test-Dependencies) { return $true }
+    return (Install-Dependencies)
+}
+
 function Start-DevServer {
+    if (-not (Confirm-Dependencies)) { return }
+    if ((Test-PortListening $WebPort) -and -not (Test-ServerPort)) {
+        Add-History "Puerto $WebPort ocupado por otro proyecto" "Red"
+        return
+    }
     Start-One "Web (Vite)" "npm.cmd" @("run", "dev", "--", "--port", "$WebPort", "--strictPort") `
         $ProjectPath $ServerPidFile $WebPort
 
@@ -190,19 +253,100 @@ function Stop-One([string]$PidFile, [int]$P) {
         }
         Remove-Item $PidFile -ErrorAction SilentlyContinue
     }
-    try {
-        Get-NetTCPConnection -LocalPort $P -State Listen -ErrorAction SilentlyContinue |
-            ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue; $stopped = $true }
-    } catch {}
+    Get-OwnPortOwners $P | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; $stopped = $true }
     return $stopped
 }
 
 function Stop-DevServer {
+    Stop-Tunnel -Quiet
     if (Stop-One $ServerPidFile $WebPort) { Add-History "Servidor cerrado" "Green" }
     else { Add-History "No habia nada corriendo en $WebPort" "Yellow" }
 }
 
+function Get-DevTunnel {
+    $cmd = Get-Command devtunnel -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+    $known = Join-Path $env:LOCALAPPDATA "Microsoft\WinGet\Links\devtunnel.exe"
+    if (Test-Path $known) { return $known }
+    return $null
+}
+
+function Install-DevTunnel {
+    Add-History "Instalando devtunnel con winget..." "Yellow"
+    Write-Host ""
+    & winget.exe install --id Microsoft.devtunnel -e --accept-source-agreements --accept-package-agreements 2>&1 | ForEach-Object { Write-Host "  $_" }
+    return (Get-DevTunnel)
+}
+
+function Test-DevTunnelLogin([string]$Exe) {
+    $out = & $Exe user show 2>&1 | Out-String
+    return ($out -match "(?i)logged in as")
+}
+
+function Get-TunnelUrl {
+    if (-not (Test-Path $TunnelLogFile)) { return $null }
+    $m = Select-String -Path $TunnelLogFile -Pattern 'https://[a-z0-9-]+-\d+\.[a-z0-9.]*devtunnels\.ms' -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($m) { return $m.Matches[0].Value }
+    return $null
+}
+
+function Start-Tunnel {
+    if (-not (Test-ServerPort)) { Start-DevServer }
+    if (-not (Test-ServerPort)) { Add-History "Sin servidor no se puede crear el tunel" "Red"; return }
+    if (Get-TrackedPid $TunnelPidFile) {
+        $current = Get-TunnelUrl
+        Add-History "Tunel ya activo: $current" "Yellow"
+        return
+    }
+    $exe = Get-DevTunnel
+    if (-not $exe) { $exe = Install-DevTunnel }
+    if (-not $exe) { Add-History "No se pudo instalar devtunnel (reabre el panel o instalalo manualmente)" "Red"; return }
+
+    if (-not (Test-DevTunnelLogin $exe)) {
+        Add-History "Inicia sesion en devtunnels (se abrira el navegador)..." "Yellow"
+        & $exe user login
+        if (-not (Test-DevTunnelLogin $exe)) { Add-History "No se inicio sesion en devtunnels" "Red"; return }
+    }
+
+    Remove-Item $TunnelLogFile -ErrorAction SilentlyContinue
+    $proc = Start-Process -FilePath $exe -ArgumentList @("host", "-p", "$WebPort", "--allow-anonymous") -WindowStyle Hidden -PassThru -RedirectStandardOutput $TunnelLogFile
+    $proc.Id | Out-File -FilePath $TunnelPidFile -Encoding ascii
+    Write-Host "  Creando tunel..." -ForegroundColor DarkGray
+
+    $deadline = (Get-Date).AddSeconds($TunnelTimeoutS)
+    $link = $null
+    while (-not $link -and (Get-Date) -lt $deadline -and -not $proc.HasExited) {
+        Start-Sleep -Milliseconds 500
+        $link = Get-TunnelUrl
+    }
+    if ($link) {
+        Set-Clipboard -Value $link
+        Add-History "Enlace publico (copiado): $link" "Green"
+    } else {
+        Stop-Tunnel -Quiet
+        Add-History "No se obtuvo el enlace del tunel en $TunnelTimeoutS s" "Red"
+    }
+}
+
+function Stop-Tunnel([switch]$Quiet) {
+    $savedPid = if (Test-Path $TunnelPidFile) { Get-Content $TunnelPidFile -ErrorAction SilentlyContinue } else { $null }
+    if ($savedPid) { Stop-Process -Id $savedPid -Force -ErrorAction SilentlyContinue }
+    Remove-Item $TunnelPidFile, $TunnelLogFile -ErrorAction SilentlyContinue
+    if (-not $Quiet) {
+        if ($savedPid) { Add-History "Tunel cerrado" "Green" } else { Add-History "No habia tunel activo" "Yellow" }
+    }
+}
+
+function Show-TunnelLink {
+    $link = Get-TunnelUrl
+    if ((Get-TrackedPid $TunnelPidFile) -and $link) {
+        Set-Clipboard -Value $link
+        Add-History "Enlace publico (copiado): $link" "Green"
+    } else { Add-History "No hay tunel activo" "Yellow" }
+}
+
 function Invoke-Tests {
+    if (-not (Confirm-Dependencies)) { return }
     Write-Host ""
     Push-Location $ProjectPath
     try { & npm.cmd test 2>&1 | ForEach-Object { Write-Host "  $_" } } finally { Pop-Location }
@@ -243,11 +387,15 @@ function Show-Menu([string]$Color, [int]$Round) {
     Write-Host "   2. Reiniciar y reabrir"
     Write-Host "   3. Cerrar servidor"
     Write-Host "   4. Ejecutar pruebas"
-    Write-Host "   5. Salir"
+    Write-Host "   5. Instalar dependencias"
+    Write-Host "   6. Crear tunel y compartir enlace"
+    Write-Host "   7. Ver/copiar enlace del tunel"
+    Write-Host "   8. Cerrar tunel"
+    Write-Host "   9. Salir"
     Write-Host "  ---------------------------------------------" -ForegroundColor DarkGray
 }
 
-$FixedRows = 23
+$FixedRows = 27
 
 function Get-VisibleHistory {
     $rows = $HistoryLimit
@@ -284,11 +432,11 @@ function Update-Header([int]$Round, [int]$Frame, [string]$StarsA, [string]$Stars
 function Read-Choice([string]$Color, [int]$Round) {
     if (-not $UseTrueColor -or $null -eq $script:HeaderTop) {
         [void](Show-History $Color $HistoryLimit)
-        return Read-Host "  Elige una opción (1-5)"
+        return Read-Host "  Elige una opción (1-9)"
     }
     $printed = Show-History $Color (Get-VisibleHistory)
     [Console]::Write("$Esc[$($printed)A$Esc[1G")
-    [Console]::Write("  Elige una opción (1-5): ")
+    [Console]::Write("  Elige una opción (1-9): ")
     $left = [Console]::CursorLeft; $top = [Console]::CursorTop
     $buf = ""; $frame = 0
     $starsA = Get-StarsLine; $starsB = Get-StarsLine
@@ -323,10 +471,14 @@ do {
         "2" { Add-History "[2] Reiniciar y reabrir" "Cyan"; Stop-DevServer; Start-DevServer; if (Test-ServerPort) { Open-Index } }
         "3" { Add-History "[3] Cerrar servidor" "Cyan"; Stop-DevServer }
         "4" { Add-History "[4] Ejecutar pruebas" "Cyan"; Invoke-Tests }
-        "5" { Add-History "[5] Salir" "Cyan" }
+        "5" { Add-History "[5] Instalar dependencias" "Cyan"; [void](Install-Dependencies); [void](Read-Host "  Enter para volver al panel") }
+        "6" { Add-History "[6] Crear tunel" "Cyan"; Start-Tunnel }
+        "7" { Add-History "[7] Enlace del tunel" "Cyan"; Show-TunnelLink }
+        "8" { Add-History "[8] Cerrar tunel" "Cyan"; Stop-Tunnel }
+        "9" { Add-History "[9] Salir" "Cyan" }
         default { Add-History "Opción no válida: '$choice'" "Red" }
     }
-} while ($choice -ne "5")
+} while ($choice -ne "9")
 
 Write-Host ""
 Write-Host "  Hasta pronto." -ForegroundColor DarkGray

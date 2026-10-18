@@ -1,4 +1,4 @@
-# PhysicsLab 3D
+﻿# PhysicsLab 3D
 
 Simulación 3D interactiva de un vehículo con **MRU** y **MRUV** que choca contra un obstáculo fijo. Incluye indicadores en vivo, gráficas, historial de pruebas, reportes PDF, varios paisajes, vehículos, obstáculos y ángulos de cámara, y daño visual según la velocidad de impacto.
 
@@ -6,7 +6,7 @@ Stack: Vite · Three.js · Chart.js · jsPDF · Vitest (JavaScript con módulos 
 
 ## Requisitos
 
-Node.js 18+ y npm.
+Node.js 20+ y npm. En Windows, la opción «Instalar dependencias» de `dev-panel.bat` instala Node.js LTS (con winget), los paquetes del proyecto y `devtunnel`; también se ejecuta sola la primera vez que se inicia el servidor.
 
 ## Comandos
 
@@ -17,7 +17,7 @@ npm test          # pruebas automatizadas (Vitest)
 npm run build     # build de producción en dist/
 ```
 
-En Windows, `dev-panel.bat` abre un panel de consola para iniciar, reiniciar y cerrar el servidor o ejecutar las pruebas.
+En Windows, `dev-panel.bat` abre un panel de consola (usa el puerto 5190 para no chocar con otros proyectos) para iniciar, reiniciar y cerrar el servidor o ejecutar las pruebas. También crea un túnel público con [Dev Tunnels](https://learn.microsoft.com/azure/developer/dev-tunnels/) (`*.devtunnels.ms`, requiere iniciar sesión una vez) y copia el enlace para compartirlo.
 
 ## Estructura
 
