@@ -4,8 +4,15 @@
   }
 
   .layout {
+    flex: none;
+    min-height: auto;
     grid-template-columns: 1fr;
-    grid-template-rows: auto;
+    grid-template-rows: none;
+    grid-auto-rows: auto;
+  }
+
+  .panel {
+    overflow: visible;
   }
 
   .stage {
