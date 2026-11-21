@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { stateAt } from '../src/physics/motion.js';
+import { stateAt } from './support/closedForm.js';
 import { CAR_LENGTH, DEFAULTS } from '../src/physics/params.js';
 import { axisBounds, buildSeries } from '../src/report/series.js';
 

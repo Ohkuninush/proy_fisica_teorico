@@ -1,10 +1,11 @@
 import { msToKmh } from '../../physics/params.js';
 import { hasGoal, OBSTACLES, VEHICLES } from '../../visuals/catalog.js';
 import { damageLevel, levelInfo } from '../../visuals/damage.js';
+import { isProjectile } from '../../physics/projectile.js';
 
 export function damageOf(entry) {
   const impact = entry.result?.impact;
-  if (!impact || hasGoal(entry.visuals) || entry.params?.model === 'PROY') return null;
+  if (!impact || hasGoal(entry.visuals) || isProjectile(entry.params)) return null;
   const vehicleId = entry.visuals?.vehicle ?? 'sedan';
   const level = damageLevel(msToKmh(Math.abs(impact.v)), vehicleId);
   return {

@@ -19,7 +19,6 @@ const EPS = 1e-9;
 
 const result = (reason, extra = {}) => ({ ok: reason === REASON.OK, reason, tImpact: null, vImpact: null, stopDistance: null, minDuration: null, ...extra });
 
-// Con rampas no hay fórmula cerrada: se simula por tramos hasta el máximo de duración permitido.
 function analyzeTrack(params) {
   const { v0, duration } = params;
   const motion = createPiecewiseMotion(params);

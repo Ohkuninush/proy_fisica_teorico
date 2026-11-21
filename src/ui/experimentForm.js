@@ -1,11 +1,11 @@
 import { analyzeFeasibility } from '../physics/feasibility.js';
 import { LAUNCH_DEFAULTS, LIMITS, validateParams } from '../physics/params.js';
-import { LAUNCHES, launchInfo } from '../physics/projectile.js';
+import { isProjectile, LAUNCHES, launchInfo, PROJECTILE } from '../physics/projectile.js';
 import { FLAT_TRACK, TRACKS, trackInfo } from '../physics/track.js';
 import { $, el } from './dom.js';
 import { describeFeasibility } from './feasibilityText.js';
 import { toGoalWording } from './wording.js';
-import { ALL_FIELDS, isFieldVisible, isProjectileModel, MODEL_HINT, TRACK_HINT_PREFIX, V0_LABEL } from './fieldRules.js';
+import { ALL_FIELDS, isFieldVisible, MODEL_HINT, TRACK_HINT_PREFIX, V0_LABEL } from './fieldRules.js';
 
 const modelButtons = () => document.querySelectorAll('.seg-btn');
 
@@ -67,7 +67,7 @@ export function createExperimentForm({ controller, isGoal = () => false }) {
   function showModel() {
     const model = currentModel();
     const track = currentTrack();
-    const projectile = isProjectileModel(model);
+    const projectile = model === PROJECTILE;
     ALL_FIELDS.forEach((field) => (inputs[field].closest('label').hidden = !isFieldVisible(model, field, visibility())));
     $('model-hint').textContent = MODEL_HINT[model];
     $('track-field').hidden = $('track-hint').hidden = projectile;
@@ -97,7 +97,7 @@ export function createExperimentForm({ controller, isGoal = () => false }) {
     }
     const feasibility = analyzeFeasibility(validation.params);
     const text = describeFeasibility(feasibility, validation.params);
-    const goalWording = isGoal() && !isProjectileModel(validation.params.model);
+    const goalWording = isGoal() && !isProjectile(validation.params);
     showFeasibility(goalWording ? { ...text, title: toGoalWording(text.title), detail: toGoalWording(text.detail) } : text);
     return { ok: feasibility.ok, params: validation.params };
   }
@@ -119,7 +119,6 @@ export function createExperimentForm({ controller, isGoal = () => false }) {
     inputs[field].addEventListener('change', applyEdit);
   });
   trackSelect.addEventListener('change', applyEdit);
-  // Cada tipo de lanzamiento arranca con valores que lo muestran bien (g se conserva).
   launchSelect.addEventListener('change', () => {
     Object.entries(LAUNCH_DEFAULTS[currentLaunch()]).forEach(([field, value]) => (inputs[field].value = value));
     applyEdit();

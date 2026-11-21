@@ -6,6 +6,7 @@ import { buildSeries } from '../series.js';
 import { COLORS, CONTENT_WIDTH, MARGIN } from './layout.js';
 import { drawHeader, drawSectionTitle, setInk, setStroke } from './primitives.js';
 import { fixed, toLatin1 } from './text.js';
+import { isProjectile } from '../../physics/projectile.js';
 
 const SAMPLES = 240;
 const CHARTS = [
@@ -50,7 +51,7 @@ function captionsFor(params, series, goal) {
 
 export function drawChartsPage(doc, entry, dateText) {
   const series = buildSeries(entry.params, SAMPLES);
-  const projectile = entry.params.model === 'PROY';
+  const projectile = isProjectile(entry.params);
   const captions = projectile ? projectileCaptions(entry.params, series) : captionsFor(entry.params, series, hasGoal(entry.visuals));
   drawHeader(doc, `Gráficas  ·  ${entry.name}`, dateText);
 

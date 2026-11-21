@@ -5,13 +5,13 @@ import { headlightBeams } from './headlightBeams.js';
 import { finishLine } from './finishLine.js';
 import { impactBurst } from './impactBurst.js';
 import { windStreaks } from './windStreaks.js';
+import { isProjectile } from '../../physics/projectile.js';
 
 const DEFAULT_EFFECTS = [windStreaks, dust, headlightBeams, impactBurst, crashDamage, finishLine, cameraFeel];
 
 export function createEffectsManager(view, factories = DEFAULT_EFFECTS) {
   const effects = factories.map((create) => create(view));
   let enabled = true;
-  // Los efectos del vehículo (polvo, viento, faros, choque) se suspenden en caída libre y lanzamientos.
   let suspended = false;
   view.camFx.shake = 0;
   const applyActive = () => effects.forEach((effect) => effect.setActive(enabled && !suspended));
@@ -26,7 +26,7 @@ export function createEffectsManager(view, factories = DEFAULT_EFFECTS) {
       applyActive();
     },
     update(snap, dt) {
-      const projectile = snap.params?.model === 'PROY';
+      const projectile = isProjectile(snap.params);
       if (projectile !== suspended) {
         suspended = projectile;
         applyActive();

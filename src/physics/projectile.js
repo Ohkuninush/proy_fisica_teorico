@@ -1,14 +1,3 @@
-// Caída libre y lanzamientos (caso ideal, sin resistencia del aire).
-//
-// Ejes: x horizontal (positivo hacia adelante), y vertical (positivo hacia
-// arriba, y = 0 es el suelo). El objeto parte de (0, h0) y la única aceleración
-// es la gravedad: a = (0, −g).
-//
-//   x(t)  = vx0·t
-//   y(t)  = h0 + vy0·t − ½·g·t²
-//   vx(t) = vx0
-//   vy(t) = vy0 − g·t
-
 export const PROJECTILE = 'PROY';
 export const EARTH_G = 9.81;
 
@@ -25,7 +14,6 @@ export const isProjectile = (params) => params?.model === PROJECTILE;
 
 const RAD = Math.PI / 180;
 
-// Componentes de la velocidad inicial según el tipo de lanzamiento.
 export function initialVelocity(params) {
   const { launch, v0 = 0, angle = 0 } = params;
   switch (launch) {
@@ -40,11 +28,9 @@ export function initialVelocity(params) {
   }
 }
 
-// Magnitudes clave del movimiento, todas en forma cerrada.
 export function projectileSummary(params) {
   const { h0, g } = params;
   const { vx0, vy0 } = initialVelocity(params);
-  // Raíz positiva de h0 + vy0·t − ½·g·t² = 0.
   const tFlight = (vy0 + Math.sqrt(vy0 * vy0 + 2 * g * h0)) / g;
   const rises = vy0 > 0;
   const tPeak = rises ? vy0 / g : 0;
@@ -62,7 +48,6 @@ export function projectileSummary(params) {
     xPeak: vx0 * tPeak,
     vyImpact,
     vImpact,
-    // Ángulo bajo la horizontal con el que llega al suelo (90° = vertical).
     impactAngle: Math.atan2(-vyImpact, vx0) / RAD,
   };
 }
@@ -103,7 +88,6 @@ export function createProjectileExperiment(params) {
     vPeak: Math.max(summary.v0, summary.vImpact),
     summary,
     evaluate,
-    // Para el panel: "recorrido" = distancia horizontal, "restante" = altura sobre el suelo.
     progress: (s) => ({ traveled: s.x, remaining: Math.max(0, s.y) }),
   };
 }

@@ -1,4 +1,5 @@
 import { Chart, Filler, LinearScale, LineController, LineElement, PointElement, Tooltip } from 'chart.js';
+import { PROJECTILE } from '../physics/projectile.js';
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, Tooltip, Filler);
 
@@ -13,7 +14,6 @@ const SERIES = [
   { key: 'a', yLabel: 'a (m/s²)', color: '#ffb703' },
 ];
 
-// Qué se grafica en cada panel según el modelo. xKey = magnitud del eje horizontal.
 const MODES = {
   linear: [
     { key: 'x', xKey: 't', xLabel: 't (s)', yLabel: 'x (m)', title: 'Posición vs. tiempo' },
@@ -90,7 +90,7 @@ export function createCharts(canvases) {
 
   return {
     setMode(model) {
-      const next = model === 'PROY' ? 'PROY' : 'linear';
+      const next = model === PROJECTILE ? PROJECTILE : 'linear';
       if (next === mode) return;
       mode = next;
       MODES[mode].forEach(({ xLabel, yLabel, title }, i) => {

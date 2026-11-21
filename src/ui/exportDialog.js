@@ -4,6 +4,7 @@ import { modelLabel } from './indicators.js';
 import { hasGoal } from '../visuals/catalog.js';
 import { el } from './dom.js';
 import { announceOverlay, onEscape, onOtherOverlayOpened } from './overlay.js';
+import { isProjectile } from '../physics/projectile.js';
 
 const CLOSE_ANIMATION_MS = 250;
 
@@ -35,7 +36,7 @@ export function createExportDialog({ store, openBtn, dialog, backdrop, list, cou
     const main = el('span', 'export-main');
     main.append(el('strong', '', entry.name), el('time', '', entry.savedAt));
     const tags = el('span', 'export-tags');
-    const projectile = entry.params.model === 'PROY';
+    const projectile = isProjectile(entry.params);
     const statusLabel = entry.result.status === 'collided' ? (projectile ? 'Suelo' : hasGoal(entry.visuals) ? 'Meta' : 'Colisión') : 'Finalizado';
     tags.append(el('span', 'tag', modelLabel(entry.params)), ...(hasRamps(entry.params) ? [el('span', 'tag', trackInfo(entry.params.track).name)] : []), el('span', `tag st-${entry.result.status}`, statusLabel));
     const numbers = el('span', 'export-nums', `t = ${entry.result.t.toFixed(2)} s · v = ${msToKmh(entry.result.v).toFixed(1)} km/h`);

@@ -1,36 +1,35 @@
 import { describe, it, expect } from 'vitest';
-import { stateAt } from '../src/physics/motion.js';
 import { validateParams, DEFAULTS, msToKmh, CAR_LENGTH } from '../src/physics/params.js';
 import { impactTime } from '../src/physics/collision.js';
 import { createExperiment } from '../src/physics/experiment.js';
 
 describe('MRU', () => {
-  const p = { model: 'MRU', x0: 5, v0: 10, a: 0, duration: 20, gap: 500 };
+  const e = createExperiment({ model: 'MRU', x0: 5, v0: 10, a: 0, duration: 20, gap: 500 });
   it('x = x0 + v0 t, v constant, a = 0', () => {
-    const s = stateAt(p, 3);
+    const s = e.evaluate(3);
     expect(s.x).toBeCloseTo(35);
     expect(s.v).toBe(10);
     expect(s.a).toBe(0);
   });
   it('ignores a given acceleration', () => {
-    expect(stateAt({ ...p, a: 9 }, 2).v).toBe(10);
+    expect(createExperiment({ model: 'MRU', x0: 5, v0: 10, a: 9, duration: 20, gap: 500 }).evaluate(2).v).toBe(10);
   });
-  it('rejects negative or non-finite time', () => {
-    expect(() => stateAt(p, -1)).toThrow();
-    expect(() => stateAt(p, NaN)).toThrow();
+  it('clamps time to [0, tEnd]', () => {
+    expect(e.evaluate(-1).t).toBe(0);
+    expect(e.evaluate(999).t).toBe(20);
   });
 });
 
 describe('MRUV', () => {
   const p = { model: 'MRUV', x0: 2, v0: 3, a: 4, duration: 20, gap: 500 };
   it('x = x0 + v0 t + a t^2 / 2, v = v0 + a t', () => {
-    const s = stateAt(p, 2);
+    const s = createExperiment(p).evaluate(2);
     expect(s.x).toBeCloseTo(2 + 6 + 8);
     expect(s.v).toBeCloseTo(11);
     expect(s.a).toBe(4);
   });
   it('supports deceleration', () => {
-    const s = stateAt({ ...p, v0: 10, a: -2 }, 5);
+    const s = createExperiment({ ...p, v0: 10, a: -2 }).evaluate(5);
     expect(s.v).toBeCloseTo(0);
     expect(s.x).toBeCloseTo(2 + 50 - 25);
   });

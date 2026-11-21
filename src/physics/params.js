@@ -11,7 +11,6 @@ export const DEFAULTS = Object.freeze({
   PROY: Object.freeze({ model: PROJECTILE, launch: 'oblique', h0: 20, v0: 20, angle: 45, g: EARTH_G }),
 });
 
-// Valores iniciales sugeridos al cambiar de tipo de lanzamiento.
 export const LAUNCH_DEFAULTS = Object.freeze({
   free: Object.freeze({ h0: 45, v0: 0, angle: 45 }),
   vertical: Object.freeze({ h0: 0, v0: 25, angle: 90 }),
@@ -31,7 +30,7 @@ export const LIMITS = {
   g: [0.1, 50],
 };
 
-export const MODELS = ['MRU', 'MRUV', PROJECTILE];
+const MODELS = ['MRU', 'MRUV', PROJECTILE];
 
 export const msToKmh = (v) => v * MS_TO_KMH;
 
@@ -55,7 +54,6 @@ function readNumber(input, key, params, errors, fieldErrors) {
   }
 }
 
-// Caída libre y lanzamientos: h0, g siempre; v0 salvo en caída libre; θ solo en tiro parabólico.
 function validateProjectile(input) {
   const errors = [];
   const fieldErrors = {};

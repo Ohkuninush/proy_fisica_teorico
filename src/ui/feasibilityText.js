@@ -1,12 +1,13 @@
 import { obstacleX } from '../physics/collision.js';
 import { REASON } from '../physics/feasibility.js';
 import { LIMITS, msToKmh } from '../physics/params.js';
+import { isProjectile } from '../physics/projectile.js';
 
 const fixed = (value, digits = 2) => Number(value).toFixed(digits);
 
 const roundedUp = (seconds) => Math.ceil(seconds * 10) / 10 + 0.1;
 
-function describeProjectile(feasibility, params) {
+function describeProjectile(feasibility) {
   if (feasibility.reason === REASON.NO_FLIGHT) {
     return {
       state: 'bad',
@@ -24,7 +25,7 @@ function describeProjectile(feasibility, params) {
 }
 
 export function describeFeasibility(feasibility, params) {
-  if (params.model === 'PROY') return describeProjectile(feasibility, params);
+  if (isProjectile(params)) return describeProjectile(feasibility);
   const { v0, gap, duration, model } = params;
   const a = model === 'MRU' ? 0 : params.a;
   const obstaclePosition = `Obstáculo en x = ${fixed(obstacleX(params), 1)} m.`;

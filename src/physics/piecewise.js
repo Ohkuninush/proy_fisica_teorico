@@ -1,16 +1,9 @@
 import { G, physicsSegments } from './track.js';
 
-// Movimiento por tramos: dentro de cada tramo la aceleración es constante,
-//   a = a_motor − g·sen(θ)
-// (la componente del peso a lo largo de la pista frena en las subidas y acelera
-// en las bajadas). La simulación avanza de evento en evento (cruce de un límite
-// de tramo, choque o fin del tiempo) y guarda trozos MRUV exactos.
-
 const EPS_T = 1e-9;
 const EPS_V = 1e-9;
 const MAX_EVENTS = 200000;
 
-// Menor τ > 0 tal que d0 + v·τ + ½·a·τ² = target, o null si nunca ocurre.
 function firstHit(d0, v, a, target) {
   const c = d0 - target;
   if (Math.abs(a) < 1e-12) {
@@ -28,8 +21,6 @@ function firstHit(d0, v, a, target) {
 export function createPiecewiseMotion(params) {
   const motor = params.model === 'MRU' ? 0 : params.a;
   const segments = physicsSegments(params);
-  // Los tramos son contiguos. Zonas: 0 = suelo antes de la pista, 1..n = tramos,
-  // n+1 = suelo después. La zona k está entre bounds[k-1] y bounds[k].
   const bounds = segments.length ? [segments[0].d0, ...segments.map((seg) => seg.d1)] : [];
   const zoneTheta = [0, ...segments.map((seg) => seg.theta), ...(segments.length ? [0] : [])];
   const zoneAccel = zoneTheta.map((theta) => motor - G * Math.sin(theta));
@@ -40,7 +31,6 @@ export function createPiecewiseMotion(params) {
     return k;
   };
 
-  // Al estar justo sobre un límite, elige la zona según el sentido del movimiento.
   function resolveZone(d, v) {
     const k = zoneOf(d);
     const onBound = (i) => i >= 0 && i < bounds.length && Math.abs(d - bounds[i]) < 1e-7;
@@ -55,7 +45,6 @@ export function createPiecewiseMotion(params) {
     return { zone: above, stuck: true };
   }
 
-  // Simula desde t = 0 hasta `horizon` o hasta que el frente toque `target`.
   function simulate(horizon, target) {
     const pieces = [];
     let t = 0;
@@ -86,7 +75,6 @@ export function createPiecewiseMotion(params) {
       const next = candidates.reduce((best, c) => (c.tau < best.tau || (c.tau === best.tau && c.kind === 'hit') ? c : best));
       const tau = Math.min(next.tau, remaining);
       pieces.push({ t0: t, t1: t + tau, d0: d, v0: v, a, theta });
-      // Punto más lejano dentro del trozo (vértice de la parábola si cae dentro).
       if (a < 0 && v > 0) {
         const tVertex = v / -a;
         maxD = Math.max(maxD, d + (tVertex <= tau ? (v * v) / (-2 * a) : v * tau + 0.5 * a * tau * tau));
@@ -96,7 +84,6 @@ export function createPiecewiseMotion(params) {
       t += tau;
       maxD = Math.max(maxD, d);
       if (next.kind === 'bound') {
-        // Ajusta al límite exacto para evitar acumulación de error.
         const k = zone > 0 && Math.abs(d - bounds[zone - 1]) < 1e-6 ? zone - 1 : zone;
         if (k < bounds.length && Math.abs(d - bounds[k]) < 1e-6) d = bounds[k];
       }

@@ -48,7 +48,6 @@ export const RIGS = {
     streaks: true,
     beams: false,
     pose: ({ carX, rearY = 0, pitch = 0, eye: [eyeX, eyeY] }) => {
-      // El ojo va fijo al vehículo: se inclina con él en las rampas.
       const cos = Math.cos(pitch);
       const sin = Math.sin(pitch);
       const pos = vec(carX + eyeX * cos - eyeY * sin, rearY + eyeX * sin + eyeY * cos, LANE_Z);

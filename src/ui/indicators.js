@@ -1,5 +1,5 @@
 import { msToKmh } from '../physics/params.js';
-import { launchInfo } from '../physics/projectile.js';
+import { isProjectile, launchInfo, PROJECTILE } from '../physics/projectile.js';
 
 const STATUS_LABEL = {
   idle: 'Listo',
@@ -14,14 +14,10 @@ const GROUND_STATUS_LABEL = 'En el suelo';
 
 const fixed = (value, digits = 2) => (Number.isFinite(value) ? value.toFixed(digits) : '—');
 
-const isProjectileSnap = (snap) => snap.params?.model === 'PROY';
+export const modelLabel = (params) => (isProjectile(params) ? launchInfo(params.launch).short : params?.model ?? '');
 
-// Nombre corto para etiquetas: MRU, MRUV o el tipo de lanzamiento.
-export const modelLabel = (params) => (params?.model === 'PROY' ? launchInfo(params.launch).short : params?.model ?? '');
-
-// Rótulos de los indicadores (claves = ids i-<clave> del panel).
 export function indicatorLabels(model, goal = false) {
-  if (model === 'PROY') {
+  if (model === PROJECTILE) {
     return {
       time: 'Tiempo',
       position: 'Posición x',
@@ -50,7 +46,7 @@ export function indicatorLabels(model, goal = false) {
 }
 
 function statusOf(snap, goal) {
-  if (snap.status === 'collided' && isProjectileSnap(snap)) return GROUND_STATUS_LABEL;
+  if (snap.status === 'collided' && isProjectile(snap.params)) return GROUND_STATUS_LABEL;
   if (goal && snap.status === 'collided') return GOAL_STATUS_LABEL;
   return STATUS_LABEL[snap.status] ?? snap.status;
 }
@@ -64,7 +60,7 @@ export function formatIndicators(snap, { goal = false } = {}) {
     vMax: `${fixed(snap.vMax)} m/s (${fixed(msToKmh(snap.vMax), 1)} km/h)`,
     status: statusOf(snap, goal),
   };
-  if (isProjectileSnap(snap)) {
+  if (isProjectile(snap.params)) {
     const direction = (Math.atan2(snap.vy ?? 0, snap.vx ?? 0) * 180) / Math.PI;
     return {
       ...common,

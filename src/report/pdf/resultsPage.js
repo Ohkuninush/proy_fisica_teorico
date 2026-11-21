@@ -8,6 +8,7 @@ import { modelLabel } from '../../ui/indicators.js';
 import { COLORS, CONTENT_WIDTH, DAMAGE_COLORS, MARGIN, mix, statusStyleOf } from './layout.js';
 import { drawAccentCard, drawChip, drawHeader, drawKpiCard, drawPanel, drawSectionTitle, drawZebraRow, setFill, setInk, setStroke } from './primitives.js';
 import { fixed, toLatin1 } from './text.js';
+import { isProjectile } from '../../physics/projectile.js';
 
 const KPI_GAP = 4;
 const KPI_HEIGHT = 21;
@@ -27,7 +28,6 @@ function rampEquations(params) {
   ];
 }
 
-const isProjectile = (params) => params.model === 'PROY';
 
 function equationsFor(params) {
   if (isProjectile(params)) return projectileEquations(params);

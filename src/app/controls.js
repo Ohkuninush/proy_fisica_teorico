@@ -1,10 +1,10 @@
 import { DEFAULTS, LAUNCH_DEFAULTS, LIMITS } from '../physics/params.js';
 import { $ } from '../ui/dom.js';
+import { PROJECTILE } from '../physics/projectile.js';
 
 export function bindControls({ controller, form, effects, view }) {
-  // Cambiar de modelo o restaurar valores conserva el recorrido elegido.
   function loadModelDefaults(model) {
-    if (model === 'PROY') {
+    if (model === PROJECTILE) {
       const launch = $('launch').value || DEFAULTS.PROY.launch;
       const params = { ...DEFAULTS.PROY, launch, ...LAUNCH_DEFAULTS[launch] };
       form.fill(params);

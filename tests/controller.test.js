@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createController, STATUS } from '../src/sim/controller.js';
 import { DEFAULTS } from '../src/physics/params.js';
-import { stateAt } from '../src/physics/motion.js';
+import { stateAt } from './support/closedForm.js';
 import { formatIndicators } from '../src/ui/indicators.js';
 
 function fakeRaf() {

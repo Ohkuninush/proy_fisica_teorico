@@ -6,8 +6,6 @@ import { createSea } from './sea.js';
 import { createSky } from './sky.js';
 import { THEMES } from './themes.js';
 
-export { LANE_Z } from './constants.js';
-
 export function createEnvironment(scene) {
   const sky = createSky(scene);
   const road = createRoad(scene);

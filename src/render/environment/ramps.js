@@ -3,10 +3,6 @@ import { disposeObject } from '../dispose.js';
 import { asphaltTexture, hazardTexture } from '../textures.js';
 import { LANE_Z } from './constants.js';
 
-// Rampas de subida, plataformas y rampas de bajada sobre el carril del vehículo.
-// Cada bloque elevado es un perfil lateral (silueta de la pista hasta el suelo)
-// extruido a lo ancho del carril, con líneas de borde, barandas y franjas de aviso.
-
 const WIDTH = 5.2;
 const EDGE_INSET = 0.35;
 const RAIL_HEIGHT = 0.9;
@@ -27,7 +23,6 @@ function createMaterials() {
   return materials;
 }
 
-// Agrupa los nodos de la pista en bloques que se despegan del suelo y vuelven a él.
 function elevatedBlocks(points) {
   const blocks = [];
   let current = null;
@@ -49,7 +44,6 @@ function elevatedBlocks(points) {
 }
 
 function blockMesh(block, materials) {
-  // Silueta: pie de la rampa → borde superior de cada tramo → vuelta por el suelo.
   const shape = new THREE.Shape();
   shape.moveTo(block[0].x, 0);
   block.slice(1).forEach((p) => shape.lineTo(p.x, Math.max(p.y, 0)));
@@ -63,7 +57,6 @@ function blockMesh(block, materials) {
   return mesh;
 }
 
-// Una pieza recta (línea, baranda) que sigue un tramo inclinado entre a y b.
 function alongSegment(a, b, geometryFor, material, y, z) {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
@@ -97,7 +90,6 @@ function decorate(group, block, materials) {
       }
     }
   }
-  // Franjas de aviso al pie de cada subida y al final de cada bajada.
   for (const [p, q] of [[block[0], block[1]], [block.at(-1), block.at(-2)]]) {
     const direction = Math.sign(q.x - p.x) || 1;
     const strip = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.04, WIDTH), materials.hazard);
@@ -113,7 +105,6 @@ export function createRamps(scene) {
   scene.add(root);
 
   function clear() {
-    // Los materiales se comparten entre reconstrucciones: solo se liberan geometrías.
     root.children.slice().forEach((child) => {
       root.remove(child);
       child.geometry?.dispose();
@@ -124,7 +115,6 @@ export function createRamps(scene) {
     setVisible(visible) {
       root.visible = visible;
     },
-    // trackView: ver render/trackView.js
     build(trackView) {
       clear();
       const { segments } = trackView.track;

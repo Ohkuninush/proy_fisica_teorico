@@ -134,7 +134,7 @@ describe('interface and report for projectiles', () => {
   it('shows only the fields each launch needs', () => {
     expect(fieldsFor('PROY', { launch: 'free' })).toEqual(['h0', 'g']);
     expect(fieldsFor('PROY', { launch: 'oblique' })).toEqual(['h0', 'v0', 'angle', 'g']);
-    expect(fieldsFor('MRU', 'platform')).toContain('slope');
+    expect(fieldsFor('MRU', { track: 'platform' })).toContain('slope');
   });
 
   it('formats indicators and labels for projectiles', () => {

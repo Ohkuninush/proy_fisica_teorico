@@ -17,6 +17,7 @@ import { createProjectileScene, followPose, framingPose } from './projectile/ind
 import { createObstacle } from './obstacles/index.js';
 import { createTrackView } from './trackView.js';
 import { createVehicle } from './vehicles/index.js';
+import { isProjectile } from '../physics/projectile.js';
 
 const HEADLIGHT_INTENSITY = 900;
 const GLARE_HEADLIGHT_INTENSITY = 220;
@@ -111,7 +112,6 @@ export function createScene(canvas) {
   let goalVisible = false;
   let themeFog = [scene.fog.near, scene.fog.far];
 
-  // Caída libre y lanzamientos usan su propia escena: se ocultan vehículo, obstáculo y rampas.
   function setProjectileMode(enabled) {
     if (enabled === projectileMode) return;
     projectileMode = enabled;
@@ -139,7 +139,6 @@ export function createScene(canvas) {
       camera.far = far;
       camera.updateProjectionMatrix();
     }
-    // Con lanzamientos muy altos la cámara se aleja: la niebla se aleja con ella.
     scene.fog.near = Math.max(themeFog[0], pose.distance * 0.9);
     scene.fog.far = Math.max(themeFog[1], pose.distance * 3);
     headlight.intensity = 0;
@@ -157,8 +156,6 @@ export function createScene(canvas) {
     camFx: cameraEffects,
     car: carRoot,
     carZ: LANE_Z,
-    // Pose del vehículo y del obstáculo en coordenadas de la escena (con rampas, X e Y
-    // ya no coinciden con la posición física medida a lo largo de la pista).
     carWorld: { x: 0, y: 0, pitch: 0, centerX: CAR_LENGTH / 2, centerY: 0 },
     obstacleWorldX: 0,
     vehicleMeta: { rearWheelX: 0.85, trackZ: 0.9 },
@@ -254,7 +251,7 @@ export function createScene(canvas) {
     },
     update(snap) {
       latestSnap = snap;
-      setProjectileMode(snap.params.model === 'PROY');
+      setProjectileMode(isProjectile(snap.params));
       if (projectileMode) {
         projectile.update(snap);
         return;

@@ -3,8 +3,6 @@ import { initialVelocity, launchInfo, projectileSummary } from '../../physics/pr
 import { COLORS } from './layout.js';
 import { fixed } from './text.js';
 
-// Contenido del reporte PDF para caída libre y lanzamientos.
-
 const parenthesized = (value) => (value < 0 ? `(${value})` : `${value}`);
 const round = (value) => +Number(value).toFixed(3);
 

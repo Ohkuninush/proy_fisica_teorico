@@ -1,10 +1,7 @@
 import { CAR_LENGTH } from '../physics/params.js';
-import { createTrack } from '../physics/track.js';
+import { createTrack, FLAT_TRACK } from '../physics/track.js';
 
-// Traduce posiciones de la física (medidas a lo largo de la pista) a coordenadas
-// de la escena: X horizontal, Y altura y la inclinación del vehículo.
-
-const keyOf = (p) => `${p.track ?? 'flat'}|${p.slope}|${p.gap}|${p.x0}`;
+const keyOf = (p) => `${p.track ?? FLAT_TRACK}|${p.slope}|${p.gap}|${p.x0}`;
 
 export function createTrackView() {
   let key = null;
@@ -20,13 +17,11 @@ export function createTrackView() {
     return true;
   }
 
-  // u: coordenada de camino (0 = frente del vehículo al inicio).
   const worldAt = (u) => {
     const { s, h } = track.pointAt(u);
     return { x: params.x0 + CAR_LENGTH + s, y: h };
   };
 
-  // pathX: posición física del extremo trasero del vehículo.
   function carPose(pathX) {
     const front = pathX - params.x0;
     const rear = worldAt(front - CAR_LENGTH);

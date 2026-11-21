@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { analyzeFeasibility, REASON } from '../src/physics/feasibility.js';
-import { validateParams, DEFAULTS } from '../src/physics/params.js';
+import { DEFAULTS } from '../src/physics/params.js';
 
 const mru = (o = {}) => ({ model: 'MRU', x0: 0, v0: 20, a: 0, duration: 20, gap: 100, ...o });
 const mruv = (o = {}) => ({ model: 'MRUV', x0: 0, v0: 0, a: 2, duration: 30, gap: 100, ...o });

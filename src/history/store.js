@@ -1,4 +1,5 @@
 import { browserStorage, readJson, writeJson } from '../storage.js';
+import { isProjectile } from '../physics/projectile.js';
 
 export const MAX_COMMENT = 200;
 export const MAX_NAME = 60;
@@ -32,7 +33,7 @@ function buildEntry(snap, seq, now, visuals) {
       a: snap.a,
       remaining: snap.remaining,
       vMax: snap.vMax,
-      ...(snap.params.model === 'PROY' ? { y: snap.y, vx: snap.vx, vy: snap.vy } : {}),
+      ...(isProjectile(snap.params) ? { y: snap.y, vx: snap.vx, vy: snap.vy } : {}),
       impact: snap.impact ? { ...snap.impact } : null,
     },
   };

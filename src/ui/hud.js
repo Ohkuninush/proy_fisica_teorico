@@ -1,4 +1,6 @@
 import { msToKmh } from '../physics/params.js';
+import { isProjectile } from '../physics/projectile.js';
+import { hasRamps } from '../physics/track.js';
 import { $ } from './dom.js';
 
 const GAUGE_ARC_LENGTH = Math.PI * 80;
@@ -7,7 +9,7 @@ const GAUGE_STEP_KMH = 20;
 
 function gaugeMaxKmh(params, vPeak = 0) {
   const finalSpeed = params.v0 + (params.model === 'MRU' ? 0 : params.a) * params.duration;
-  const usePeak = params.model === 'PROY' || (params.track && params.track !== 'flat');
+  const usePeak = isProjectile(params) || hasRamps(params);
   const peakKmh = msToKmh(usePeak ? vPeak : Math.max(Math.abs(params.v0), Math.abs(finalSpeed)));
   return Math.max(MIN_GAUGE_KMH, Math.ceil(peakKmh / GAUGE_STEP_KMH) * GAUGE_STEP_KMH);
 }
@@ -29,7 +31,7 @@ export function createHud() {
       speed.textContent = speedKmh.toFixed(0);
       maxSpeed.textContent = `${gaugeMax}`;
 
-      const fraction = snap.params.model === 'PROY' ? snap.t / (snap.tEnd || 1) : snap.traveled / snap.params.gap;
+      const fraction = isProjectile(snap.params) ? snap.t / (snap.tEnd || 1) : snap.traveled / snap.params.gap;
       const progress = Math.min(1, Math.max(0, fraction)) * 100;
       progressFill.style.width = `${progress}%`;
       carMarker.style.left = `${progress}%`;

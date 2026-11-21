@@ -4,13 +4,6 @@ import { LANE_Z } from '../environment/constants.js';
 import { clamp } from '../math.js';
 import { softDotTexture } from '../textures.js';
 
-// Escena de caída libre y lanzamientos: edificio de altura h0, pelota, trayectoria
-// prevista (punteada), estela recorrida, marcas de altura máxima y de impacto.
-//
-// La física pone el origen en el punto de lanzamiento (x = 0, y = h0 sobre el
-// suelo). En la escena, la pelota sale justo delante de la fachada: su centro
-// está en (ORIGIN_X + x, y + radio).
-
 const BALL_RADIUS = 0.35;
 const ORIGIN_X = BALL_RADIUS + 0.08;
 const BUILDING_WIDTH = 8;
@@ -20,10 +13,8 @@ const PATH_POINTS = 160;
 const PATH_DOTS = 48;
 const RING_LIFETIME_S = 0.9;
 const LABEL_SCALE = 0.03;
-// A más distancia de cámara, la pelota y la estela se dibujan más grandes para seguir viéndose.
 const VISUAL_SCALE_DISTANCE = 22;
 
-// Fachada clara de concreto con ventanas, para distinguir el edificio del fondo.
 function concreteTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 128;
@@ -75,7 +66,6 @@ function textSprite() {
       g.fillText(text, canvas.width / 2, 66);
       texture.needsUpdate = true;
     },
-    // Tamaño constante en pantalla: escala con la distancia a la cámara.
     fit(distance) {
       const s = Math.max(1.4, distance * LABEL_SCALE);
       sprite.scale.set(s * 6, s, 1);
@@ -123,7 +113,6 @@ function createBuilding() {
         tower.position.set(-BUILDING_WIDTH / 2, h0 / 2, LANE_Z);
         facade.repeat.set(2, Math.max(1, h0 / (FLOOR_HEIGHT * 8)));
         ledge.position.set(-BUILDING_WIDTH / 2, h0 - 0.15, LANE_Z);
-        // Baranda en el borde trasero de la azotea (no estorba la salida de la pelota).
         parapet.position.set(-BUILDING_WIDTH + 0.2, h0 + 0.45, LANE_Z);
       } else {
         pad.position.set(ORIGIN_X, 0.06, LANE_Z);
@@ -159,15 +148,13 @@ export function createProjectileScene(scene) {
   shadow.rotation.x = -Math.PI / 2;
   root.add(shadow);
 
-  // Trayectoria prevista: puntos blancos; estela recorrida: tubo celeste.
   const dots = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 }), PATH_DOTS);
   dots.frustumCulled = false;
   const trailMaterial = new THREE.MeshBasicMaterial({ color: 0x4cc9f0, toneMapped: false });
   const trail = new THREE.Mesh(new THREE.BufferGeometry(), trailMaterial);
   trail.frustumCulled = false;
-  const predicted = dots;
   const peakGuide = lineOf(new THREE.LineDashedMaterial({ color: 0xb8f35a, dashSize: 0.4, gapSize: 0.3 }), 2);
-  root.add(predicted, trail, peakGuide);
+  root.add(dots, trail, peakGuide);
 
   const landing = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.85, 40), new THREE.MeshBasicMaterial({ color: 0xf72585, transparent: true, opacity: 0.85, depthWrite: false }));
   landing.rotation.x = -Math.PI / 2;
@@ -262,11 +249,9 @@ export function createProjectileScene(scene) {
         build(snap.params);
       }
       const [bx, rawY, bz] = world(snap.x, Math.max(0, snap.y));
-      // Con la pelota agrandada, su centro se eleva para que siga apoyándose en el suelo.
       const by = rawY + BALL_RADIUS * (visualScale - 1);
       ball.position.set(bx, by, bz);
       ball.scale.setScalar(visualScale);
-      // Rueda en el aire según lo avanzado; la costura muestra el giro.
       ball.rotation.z = -(snap.x + Math.abs(snap.y - params.h0) * 0.6) / BALL_RADIUS;
 
       const height = Math.max(0, snap.y);
@@ -274,7 +259,6 @@ export function createProjectileScene(scene) {
       shadow.scale.setScalar(clamp(1.3 + height * 0.06, 1.3, 4));
       shadow.material.opacity = clamp(0.55 - height * 0.012, 0.12, 0.55);
 
-      // Estela: puntos de la trayectoria ya recorridos más la posición actual.
       const fraction = summary.tFlight > 0 ? clamp(snap.t / summary.tFlight, 0, 1) : 0;
       const done = Math.floor(fraction * (PATH_POINTS - 1));
       const nextTrail = `${done}|${snap.t.toFixed(3)}|${visualScale.toFixed(2)}`;
@@ -310,7 +294,6 @@ export function createProjectileScene(scene) {
   };
 }
 
-// Cámara que encuadra todo el lanzamiento (edificio, trayectoria e impacto).
 export function framingPose(bounds, aspect, fovDeg) {
   const { xMin, xMax, yMax } = bounds;
   const halfW = ((xMax - xMin) / 2) * 1.12;
@@ -326,7 +309,6 @@ export function framingPose(bounds, aspect, fovDeg) {
   };
 }
 
-// Cámara que sigue de cerca a la pelota.
 export function followPose(ball, bounds) {
   const p = ball.position;
   const distance = 16;

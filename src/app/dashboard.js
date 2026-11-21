@@ -4,6 +4,7 @@ import { controlsState } from '../ui/controlsState.js';
 import { formatIndicators, indicatorLabels } from '../ui/indicators.js';
 import { hasGoal } from '../visuals/catalog.js';
 import { damageLevel, levelInfo } from '../visuals/damage.js';
+import { isProjectile } from '../physics/projectile.js';
 
 const VALUE_WITH_UNIT = /^(\S+)\s(.+)$/;
 
@@ -37,7 +38,7 @@ export function createDashboard({ controller, form, hud, charts, visualsStore })
         setValueWithUnit($(`i-${key}`), text);
       }
     });
-    if (snap.params.model === 'PROY') {
+    if (isProjectile(snap.params)) {
       setValueWithUnit($('l-x'), `${snap.y.toFixed(1)} m`);
       setValueWithUnit($('l-v'), `${snap.vy.toFixed(1)} m/s`);
       setValueWithUnit($('l-a'), `${snap.x.toFixed(1)} m`);
@@ -56,7 +57,7 @@ export function createDashboard({ controller, form, hud, charts, visualsStore })
   function showCollision(snap, goal) {
     const { impact } = snap;
     $('banner').hidden = !impact;
-    if (impact && snap.params.model === 'PROY') {
+    if (impact && isProjectile(snap.params)) {
       $('banner').dataset.kind = 'goal';
       $('banner-title').textContent = '¡Impacto con el suelo!';
       $('banner-detail').textContent = `t = ${impact.t.toFixed(2)} s · v = ${impact.v.toFixed(1)} m/s (${msToKmh(impact.v).toFixed(1)} km/h) · alcance = ${snap.x.toFixed(2)} m`;
@@ -84,7 +85,7 @@ export function createDashboard({ controller, form, hud, charts, visualsStore })
 
   return {
     render(snap) {
-      const projectile = snap.params.model === 'PROY';
+      const projectile = isProjectile(snap.params);
       const goal = !projectile && hasGoal(visualsStore.get());
       showTerms(goal, projectile);
       charts.setMode(snap.params.model);
