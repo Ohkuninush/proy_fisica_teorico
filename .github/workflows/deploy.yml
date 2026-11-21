@@ -1,0 +1,62 @@
+# Build on every push to main and deploy to production (VPS) over rsync/SSH.
+#
+# Deploy runs only when the VPS secrets/variables below exist; until then the
+# job just builds and reports "deploy pending". Nothing here touches nginx, DNS or TLS.
+#
+# Repo secrets  (Settings -> Secrets and variables -> Actions):
+#   VPS_DEPLOY_KEY   private ed25519 key; on the VPS it is locked with
+#                    `restrict,command="rrsync -wo <webroot>"` (write-only rsync
+#                    jailed to the site webroot, nothing else)
+#   VPS_HOST_KEY     pinned host key line: "<host> ssh-ed25519 AAAA..."
+# Repo variables:
+#   VPS_HOST, VPS_USER
+#   VPS_DEPLOY_PATH  path relative to the rrsync jail root (".")
+
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-physicslab3d
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to VPS
+        env:
+          DEPLOY_KEY: ${{ secrets.VPS_DEPLOY_KEY }}
+          HOST_KEY: ${{ secrets.VPS_HOST_KEY }}
+          HOST: ${{ vars.VPS_HOST }}
+          USER_NAME: ${{ vars.VPS_USER }}
+          DEPLOY_PATH: ${{ vars.VPS_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DEPLOY_KEY" ] || [ -z "$HOST_KEY" ] || [ -z "$HOST" ] || [ -z "$USER_NAME" ] || [ -z "$DEPLOY_PATH" ]; then
+            echo "::notice::Deploy pending setup: VPS secrets/variables not configured. Build OK."
+            exit 0
+          fi
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519; chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$HOST_KEY" > ~/.ssh/known_hosts; chmod 600 ~/.ssh/known_hosts
+          rsync -az --delete -e "ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o IdentitiesOnly=yes" \
+            dist/ "$USER_NAME@$HOST:$DEPLOY_PATH/"
+          echo "deployed physicslab3d"
