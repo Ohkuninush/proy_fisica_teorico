@@ -17,8 +17,9 @@ export function dust(view) {
         while (pending >= 1) {
           pending -= 1;
           const { rearWheelX, trackZ } = view.vehicleMeta;
+          const { x, y, pitch } = view.carWorld;
           const wheelZ = view.carZ + (Math.random() < 0.5 ? -trackZ : trackZ);
-          particles.emit([snap.x + rearWheelX, 0.1, wheelZ], [-direction * rnd(0.5, 2.2), rnd(0.4, 1.4), rnd(-0.3, 0.3)], rnd(0.7, 1.4), rnd(0.5, 0.9), DUST_COLOR);
+          particles.emit([x + rearWheelX * Math.cos(pitch), y + rearWheelX * Math.sin(pitch) + 0.1, wheelZ], [-direction * rnd(0.5, 2.2), rnd(0.4, 1.4), rnd(-0.3, 0.3)], rnd(0.7, 1.4), rnd(0.5, 0.9), DUST_COLOR);
         }
       }
       particles.update(dt);

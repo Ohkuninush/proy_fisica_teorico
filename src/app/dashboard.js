@@ -1,7 +1,7 @@
 import { msToKmh } from '../physics/params.js';
 import { $ } from '../ui/dom.js';
 import { controlsState } from '../ui/controlsState.js';
-import { formatIndicators } from '../ui/indicators.js';
+import { formatIndicators, indicatorLabels } from '../ui/indicators.js';
 import { hasGoal } from '../visuals/catalog.js';
 import { damageLevel, levelInfo } from '../visuals/damage.js';
 
@@ -26,7 +26,10 @@ export function createDashboard({ controller, form, hud, charts, visualsStore })
   let hadImpact = false;
 
   function showIndicators(snap, goal) {
+    const labels = indicatorLabels(snap.params.model, goal);
     Object.entries(formatIndicators(snap, { goal })).forEach(([key, text]) => {
+      const label = $(`i-${key}`)?.previousElementSibling;
+      if (label && labels[key]) label.textContent = labels[key];
       if (key === 'status') {
         $('i-status').textContent = text;
         $('i-status').dataset.status = snap.status;
@@ -34,21 +37,30 @@ export function createDashboard({ controller, form, hud, charts, visualsStore })
         setValueWithUnit($(`i-${key}`), text);
       }
     });
+    if (snap.params.model === 'PROY') {
+      setValueWithUnit($('l-x'), `${snap.y.toFixed(1)} m`);
+      setValueWithUnit($('l-v'), `${snap.vy.toFixed(1)} m/s`);
+      setValueWithUnit($('l-a'), `${snap.x.toFixed(1)} m`);
+      return;
+    }
     setValueWithUnit($('l-x'), `${snap.x.toFixed(1)} m`);
     setValueWithUnit($('l-v'), `${snap.v.toFixed(1)} m/s`);
     setValueWithUnit($('l-a'), `${snap.a.toFixed(1)} m/s²`);
   }
 
-  function showTerms(goal) {
+  function showTerms(goal, projectile) {
     $('gap-label').textContent = goal ? 'Distancia a la meta' : 'Distancia al obstáculo';
-    $('hud-remaining-label').textContent = goal ? 'Distancia a la meta' : 'Distancia al obstáculo';
-    $('kpi-remaining-label').textContent = goal ? 'A la meta' : 'Al obstáculo';
+    $('hud-remaining-label').textContent = projectile ? 'Altura sobre el suelo' : goal ? 'Distancia a la meta' : 'Distancia al obstáculo';
   }
 
   function showCollision(snap, goal) {
     const { impact } = snap;
     $('banner').hidden = !impact;
-    if (impact) {
+    if (impact && snap.params.model === 'PROY') {
+      $('banner').dataset.kind = 'goal';
+      $('banner-title').textContent = '¡Impacto con el suelo!';
+      $('banner-detail').textContent = `t = ${impact.t.toFixed(2)} s · v = ${impact.v.toFixed(1)} m/s (${msToKmh(impact.v).toFixed(1)} km/h) · alcance = ${snap.x.toFixed(2)} m`;
+    } else if (impact) {
       const speedKmh = msToKmh(impact.v);
       const reading = `t = ${impact.t.toFixed(2)} s · v = ${impact.v.toFixed(1)} m/s (${speedKmh.toFixed(1)} km/h)`;
       const level = damageLevel(speedKmh, visualsStore.get().vehicle);
@@ -72,8 +84,10 @@ export function createDashboard({ controller, form, hud, charts, visualsStore })
 
   return {
     render(snap) {
-      const goal = hasGoal(visualsStore.get());
-      showTerms(goal);
+      const projectile = snap.params.model === 'PROY';
+      const goal = !projectile && hasGoal(visualsStore.get());
+      showTerms(goal, projectile);
+      charts.setMode(snap.params.model);
       showIndicators(snap, goal);
       showCollision(snap, goal);
       showControls(snap);

@@ -29,7 +29,7 @@ export async function buildReportPdf(entries, { now = new Date(), onProgress = (
   drawFooters(doc, single ? `Reporte: ${entries[0].name}` : `Reporte de ${entries.length} pruebas`);
   doc.setProperties({
     title: single ? `PhysicsLab 3D - ${toLatin1(entries[0].name)}` : `PhysicsLab 3D - ${entries.length} pruebas`,
-    subject: 'Reporte de experimentos MRU / MRUV',
+    subject: 'Reporte de experimentos MRU / MRUV / caída y lanzamientos',
     author: 'PhysicsLab 3D',
     creator: 'PhysicsLab 3D',
   });

@@ -4,7 +4,7 @@ import { damageLevel, levelInfo } from '../../visuals/damage.js';
 
 export function damageOf(entry) {
   const impact = entry.result?.impact;
-  if (!impact || hasGoal(entry.visuals)) return null;
+  if (!impact || hasGoal(entry.visuals) || entry.params?.model === 'PROY') return null;
   const vehicleId = entry.visuals?.vehicle ?? 'sedan';
   const level = damageLevel(msToKmh(Math.abs(impact.v)), vehicleId);
   return {

@@ -1,4 +1,5 @@
 import { msToKmh } from '../../physics/params.js';
+import { modelLabel } from '../../ui/indicators.js';
 import { damageOf } from './damage.js';
 import { COLORS, CONTENT_WIDTH, GOAL_STATUS, MARGIN, STATUS_STYLE, statusStyleOf } from './layout.js';
 import { drawHeader, drawSectionTitle, drawZebraRow, setFill, setInk } from './primitives.js';
@@ -32,7 +33,7 @@ function rowCells(entry, index) {
     String(index + 1),
     toLatin1(entry.name),
     entry.savedAt,
-    entry.params.model,
+    toLatin1(modelLabel(entry.params)),
     statusStyleOf(entry).label,
     damage ? `Nivel ${damage.level}` : '-',
     fixed(entry.result.t),

@@ -16,7 +16,7 @@
         <svg viewBox="0 0 32 32" width="30" height="30"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4cc9f0"/><stop offset="1" stop-color="#f72585"/></linearGradient></defs><rect x="2" y="2" width="28" height="28" rx="8" fill="none" stroke="url(#lg)" stroke-width="2.4"/><path d="M7 21 L13 13 L18 18 L25 9" fill="none" stroke="url(#lg)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
       <h1>Physics<span>Lab</span> 3D</h1>
-      <span class="chip">MRU · MRUV</span>
+      <span class="chip">MRU · MRUV · Rampas · Lanzamientos</span>
     </header>
     <main class="layout">
       <aside class="panel config" aria-label="Configuración">
@@ -24,14 +24,23 @@
         <div class="seg" role="group" aria-label="Modelo físico">
           <button type="button" data-model="MRU" class="seg-btn">MRU</button>
           <button type="button" data-model="MRUV" class="seg-btn">MRUV</button>
+          <button type="button" data-model="PROY" class="seg-btn seg-wide">Caída y lanzamientos</button>
         </div>
         <p id="model-hint" class="model-hint"></p>
-        <select id="model" hidden aria-label="Modelo"><option value="MRU">MRU</option><option value="MRUV">MRUV</option></select>
+        <select id="model" hidden aria-label="Modelo"><option value="MRU">MRU</option><option value="MRUV">MRUV</option><option value="PROY">Caída y lanzamientos</option></select>
+        <label id="launch-field"><span>Tipo de lanzamiento</span><select id="launch" class="track-select" aria-describedby="launch-hint"></select></label>
+        <p id="launch-hint" class="model-hint"></p>
         <label><span>Posición inicial <em>m</em></span><input id="x0" type="number" step="any" /></label>
-        <label><span>Velocidad inicial <em>m/s</em></span><input id="v0" type="number" step="any" /></label>
+        <label><span>Altura inicial h₀ <em>m</em></span><input id="h0" type="number" step="any" /></label>
+        <label><span><span id="v0-label">Velocidad inicial</span> <em>m/s</em></span><input id="v0" type="number" step="any" /></label>
+        <label><span>Ángulo de lanzamiento θ <em>°</em></span><input id="angle" type="number" step="any" /></label>
+        <label><span>Gravedad g <em>m/s²</em></span><input id="g" type="number" step="any" /></label>
         <label><span>Aceleración <em>m/s²</em></span><input id="a" type="number" step="any" /></label>
         <label><span>Duración <em>s</em></span><input id="duration" type="number" step="any" /></label>
         <label><span><b id="gap-label">Distancia al obstáculo</b> <em>m</em></span><input id="gap" type="number" step="any" /></label>
+        <label id="track-field"><span>Recorrido</span><select id="track" class="track-select" aria-describedby="track-hint"></select></label>
+        <p id="track-hint" class="model-hint"></p>
+        <label><span>Inclinación de las rampas <em>°</em></span><input id="slope" type="number" step="any" /></label>
         <div class="row2">
           <button type="button" id="open-visuals" class="visuals-btn" aria-controls="visuals-drawer">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.7-.9 1.4-1.9-.3-1 .3-2.1 1.4-2.1H17a4 4 0 0 0 4-4c0-5-4-10-9-10Z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="10.5" cy="7" r="1.1"/><circle cx="15.5" cy="7.5" r="1.1"/></svg>
@@ -94,6 +103,8 @@
           <div class="kpi acc1"><span>Velocidad</span><b id="i-speedKmh"></b></div>
           <div class="kpi acc3"><span>Aceleración</span><b id="i-acceleration"></b></div>
           <div class="kpi acc2"><span id="kpi-remaining-label">Al obstáculo</span><b id="i-remaining"></b></div>
+          <div class="kpi"><span>Altura</span><b id="i-height"></b></div>
+          <div class="kpi"><span>Pendiente</span><b id="i-slope"></b></div>
         </div>
         <div class="kpi wide"><span>Velocidad máxima</span><b id="i-vMax"></b></div>
         <button type="button" id="open-history" class="history-btn" aria-controls="history-drawer">
@@ -108,9 +119,9 @@
       </aside>
 
       <section class="charts" aria-label="Gráficas">
-        <div class="chart" style="--c:#4cc9f0"><h3><i class="dot"></i>Posición vs. tiempo<b class="live" id="l-x"></b></h3><div class="cv"><canvas id="c-x"></canvas></div></div>
-        <div class="chart" style="--c:#b8f35a"><h3><i class="dot"></i>Velocidad vs. tiempo<b class="live" id="l-v"></b></h3><div class="cv"><canvas id="c-v"></canvas></div></div>
-        <div class="chart" style="--c:#ffb703"><h3><i class="dot"></i>Aceleración vs. tiempo<b class="live" id="l-a"></b></h3><div class="cv"><canvas id="c-a"></canvas></div></div>
+        <div class="chart" style="--c:#4cc9f0"><h3><i class="dot"></i><span id="t-x">Posición vs. tiempo</span><b class="live" id="l-x"></b></h3><div class="cv"><canvas id="c-x"></canvas></div></div>
+        <div class="chart" style="--c:#b8f35a"><h3><i class="dot"></i><span id="t-v">Velocidad vs. tiempo</span><b class="live" id="l-v"></b></h3><div class="cv"><canvas id="c-v"></canvas></div></div>
+        <div class="chart" style="--c:#ffb703"><h3><i class="dot"></i><span id="t-a">Aceleración vs. tiempo</span><b class="live" id="l-a"></b></h3><div class="cv"><canvas id="c-a"></canvas></div></div>
       </section>
     </main>
     <div id="export-backdrop" class="modal-backdrop" hidden></div>

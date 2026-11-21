@@ -1,7 +1,10 @@
 import { obstacleX } from '../../physics/collision.js';
 import { CAR_LENGTH, msToKmh } from '../../physics/params.js';
+import { createTrack, G, hasRamps, trackInfo } from '../../physics/track.js';
 import { GOALS, hasGoal, OBSTACLES, VEHICLES } from '../../visuals/catalog.js';
 import { damageOf } from './damage.js';
+import { projectileConditions, projectileEquations, projectileKpis, projectileOutcome } from './projectileReport.js';
+import { modelLabel } from '../../ui/indicators.js';
 import { COLORS, CONTENT_WIDTH, DAMAGE_COLORS, MARGIN, mix, statusStyleOf } from './layout.js';
 import { drawAccentCard, drawChip, drawHeader, drawKpiCard, drawPanel, drawSectionTitle, drawZebraRow, setFill, setInk, setStroke } from './primitives.js';
 import { fixed, toLatin1 } from './text.js';
@@ -14,7 +17,21 @@ const DAMAGE_SEGMENT_STEP = 8.6;
 
 const parenthesized = (value) => (value < 0 ? `(${value})` : `${value}`);
 
+function rampEquations(params) {
+  const motor = params.model === 'MRU' ? 0 : params.a;
+  const slopeTerm = G * Math.sin((params.slope * Math.PI) / 180);
+  return [
+    ['Aceleración', 'a = a_m - g*sen(theta)', `sube ${fixed(motor - slopeTerm)} | plano ${fixed(motor)} | baja ${fixed(motor + slopeTerm)}`],
+    ['Velocidad', 'v = v_i + a*dt', 'dt = t - t_i (por tramo)'],
+    ['Posición', 'x = x_i + v_i*dt + a*dt^2/2', 'x_i, v_i: inicio del tramo'],
+  ];
+}
+
+const isProjectile = (params) => params.model === 'PROY';
+
 function equationsFor(params) {
+  if (isProjectile(params)) return projectileEquations(params);
+  if (hasRamps(params)) return rampEquations(params);
   const x0 = parenthesized(params.x0);
   const v0 = parenthesized(params.v0);
   if (params.model === 'MRU') {
@@ -41,14 +58,13 @@ function drawTitle(doc, entry) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   setInk(doc, COLORS.muted);
-  const meta = `Guardado: ${entry.savedAt}   |   Modelo: ${entry.params.model}   |   Resultado:`;
+  const meta = toLatin1(`Guardado: ${entry.savedAt}   |   Modelo: ${modelLabel(entry.params)}   |   Resultado:`);
   doc.text(meta, MARGIN, 49);
   drawChip(doc, status.label, status.color, MARGIN + doc.getTextWidth(meta) + 2.5, 49);
 }
 
-function drawKpis(doc, result, top, goal) {
-  const width = (CONTENT_WIDTH - 3 * KPI_GAP) / 4;
-  const cards = [
+function linearKpis(result, goal) {
+  return [
     ['Tiempo', fixed(result.t), 's', COLORS.cyan],
     ['Posición final', fixed(result.x), 'm', COLORS.cyan],
     ['Recorrido', fixed(result.traveled), 'm', COLORS.cyan],
@@ -58,6 +74,11 @@ function drawKpis(doc, result, top, goal) {
     [goal ? 'Dist. a la meta' : 'Dist. al obstáculo', fixed(result.remaining), 'm', COLORS.pink],
     ['Velocidad máxima', fixed(result.vMax), 'm/s', COLORS.violet],
   ];
+}
+
+function drawKpis(doc, entry, top) {
+  const width = (CONTENT_WIDTH - 3 * KPI_GAP) / 4;
+  const cards = isProjectile(entry.params) ? projectileKpis(entry) : linearKpis(entry.result, hasGoal(entry.visuals));
   cards.forEach(([label, value, unit, color], i) => {
     drawKpiCard(doc, {
       x: MARGIN + (i % 4) * (width + KPI_GAP),
@@ -97,7 +118,23 @@ function drawDamageScale(doc, damage, top) {
   doc.text(toLatin1(subject), MARGIN + CONTENT_WIDTH - 3, top + 2.7, { align: 'right' });
 }
 
+function drawProjectileOutcome(doc, entry, top) {
+  const { title, sentence } = projectileOutcome(entry);
+  const tone = entry.result.impact ? COLORS.lime : COLORS.violet;
+  drawAccentCard(doc, { x: MARGIN, y: top, width: CONTENT_WIDTH, height: 13, accent: tone, fill: mix(tone, COLORS.white, 0.9), stroke: mix(tone, COLORS.white, 0.5) });
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  setInk(doc, tone);
+  doc.text(title, MARGIN + 6, top + 5.4);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.6);
+  setInk(doc, COLORS.ink);
+  doc.text(toLatin1(sentence), MARGIN + 6, top + 10);
+  return top + 13;
+}
+
 function drawOutcome(doc, entry, top) {
+  if (isProjectile(entry.params)) return drawProjectileOutcome(doc, entry, top);
   const { params, result } = entry;
   const impact = result.impact;
   const damage = damageOf(entry);
@@ -123,12 +160,19 @@ function drawOutcome(doc, entry, top) {
 }
 
 function conditionRows(entry) {
+  if (isProjectile(entry.params)) return projectileConditions(entry);
   const { params } = entry;
   const goal = hasGoal(entry.visuals);
   const nameOf = (list, id) => list.find((item) => item.id === id)?.name ?? 'No registrado';
   const speed = `${fixed(params.v0)} m/s  (${fixed(msToKmh(params.v0), 1)} km/h)`;
   const acceleration = params.model === 'MRU' ? '0 m/s²  (constante)' : `${fixed(params.a)} m/s²`;
-  return [
+  const ramps = hasRamps(params)
+    ? [
+        [['Recorrido', trackInfo(params.track).name]],
+        [['Inclinación de rampas', `${fixed(params.slope, 1)}°  (altura máx. ${fixed(createTrack(params).maxHeight, 1)} m)`]],
+      ]
+    : [[], []];
+  const columns = [
     [
       ['Modelo físico', params.model === 'MRU' ? 'MRU (velocidad constante)' : 'MRUV (aceleración constante)'],
       ['Posición inicial (x0)', `${fixed(params.x0)} m`],
@@ -144,11 +188,13 @@ function conditionRows(entry) {
       goal ? ['Meta', nameOf(GOALS, entry.visuals.goal)] : ['Obstáculo', nameOf(OBSTACLES, entry.visuals?.obstacle)],
     ],
   ];
+  return columns.map((rows, i) => [...rows, ...ramps[i]]);
 }
 
 function drawConditions(doc, entry, top) {
   const columnWidth = (CONTENT_WIDTH - 6) / 2;
-  conditionRows(entry).forEach((rows, column) => {
+  const columns = conditionRows(entry);
+  columns.forEach((rows, column) => {
     const x = MARGIN + column * (columnWidth + 6);
     rows.forEach(([label, value], i) => {
       const y = top + i * CONDITION_ROW_HEIGHT;
@@ -162,7 +208,7 @@ function drawConditions(doc, entry, top) {
       doc.text(toLatin1(value), x + columnWidth - 2.5, y + 5.4, { align: 'right' });
     });
   });
-  return top + 5 * CONDITION_ROW_HEIGHT;
+  return top + Math.max(...columns.map((rows) => rows.length)) * CONDITION_ROW_HEIGHT;
 }
 
 function drawEquations(doc, params, top) {
@@ -202,7 +248,7 @@ export function drawResultsPage(doc, entry, dateText) {
   drawHeader(doc, 'Reporte de experimento', dateText);
   drawTitle(doc, entry);
 
-  const kpisBottom = drawKpis(doc, entry.result, drawSectionTitle(doc, 'Resultados', 62) + 3, hasGoal(entry.visuals));
+  const kpisBottom = drawKpis(doc, entry, drawSectionTitle(doc, 'Resultados', 62) + 3);
   const outcomeBottom = drawOutcome(doc, entry, kpisBottom + 7);
   const conditionsBottom = drawConditions(doc, entry, drawSectionTitle(doc, 'Condiciones iniciales', outcomeBottom + 10) + 3);
   const equationsBottom = drawEquations(doc, entry.params, drawSectionTitle(doc, 'Ecuaciones del modelo', conditionsBottom + 9) + 3);

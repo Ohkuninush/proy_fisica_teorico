@@ -16,6 +16,9 @@ export const SERIES_STYLE = {
   x: { color: '#1b9ac4', yLabel: 'Posición (m)' },
   v: { color: '#5da10f', yLabel: 'Velocidad (m/s)' },
   a: { color: '#e08a00', yLabel: 'Aceleración (m/s²)' },
+  y: { color: '#1b9ac4', yLabel: 'Altura (m)' },
+  vy: { color: '#5da10f', yLabel: 'Velocidad vertical (m/s)' },
+  path: { color: '#e08a00', yLabel: 'Altura (m)', valueKey: 'y', xKey: 'x', xLabel: 'Distancia horizontal (m)' },
 };
 
 const whiteBackground = {
@@ -42,11 +45,14 @@ const printAxis = (label, { min, max, ticks }) => ({
 });
 
 export function renderChartPng(series, key) {
-  const { color, yLabel } = SERIES_STYLE[key];
+  const { color, yLabel, valueKey = key, xKey = 't', xLabel = 'Tiempo (s)' } = SERIES_STYLE[key];
   const canvas = document.createElement('canvas');
   canvas.width = CHART_WIDTH;
   canvas.height = CHART_HEIGHT;
-  const bounds = axisBounds(series[key]);
+  const values = series[valueKey];
+  const xs = series[xKey];
+  const bounds = axisBounds(values);
+  const xBounds = xKey === 't' ? { min: 0, max: series.tEnd } : axisBounds(xs);
   const lastIndex = series.t.length - 1;
 
   const chart = new Chart(canvas, {
@@ -55,7 +61,7 @@ export function renderChartPng(series, key) {
     data: {
       datasets: [
         {
-          data: series.t.map((t, i) => ({ x: t, y: series[key][i] })),
+          data: xs.map((x, i) => ({ x, y: values[i] })),
           borderColor: color,
           borderWidth: 5,
           backgroundColor: `${color}26`,
@@ -77,7 +83,7 @@ export function renderChartPng(series, key) {
       layout: { padding: { top: 18, right: 30, bottom: 6, left: 6 } },
       plugins: { legend: { display: false }, tooltip: { enabled: false } },
       scales: {
-        x: printAxis('Tiempo (s)', { min: 0, max: series.tEnd, ticks: (axis) => niceTicks(axis.min, axis.max, { includeEnd: true }) }),
+        x: printAxis(xLabel, { min: xBounds.min, max: xBounds.max, ticks: (axis) => niceTicks(axis.min, axis.max, { includeEnd: xKey === 't', target: xKey === 't' ? undefined : 6 }) }),
         y: printAxis(yLabel, { min: bounds.min, max: bounds.max, ticks: (axis) => niceTicks(axis.min, axis.max, { target: 5 }) }),
       },
     },

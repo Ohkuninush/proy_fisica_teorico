@@ -26,7 +26,7 @@ export function impactBurst(view) {
   function fire(snap) {
     const level = impactLevel(view, snap) || DEFAULT_LEVEL;
     power = byLevel([0.35, 0.6, 1, 1.4, 2], level);
-    const origin = [snap.obstacleX, 1.3, view.carZ];
+    const origin = [view.obstacleWorldX, 1.3, view.carZ];
 
     for (let i = 0; i < byLevel([30, 80, 160, 220, 220], level); i++) {
       const speed = rnd(3, 16);
@@ -38,7 +38,7 @@ export function impactBurst(view) {
       const position = [origin[0] - 0.4, rnd(0.4, 2.2), origin[2] + rnd(-1.6, 1.6)];
       smoke.emit(position, [rnd(-3, 0.5), rnd(0.5, 2.2), rnd(-1, 1)], rnd(1.2, 2.4), rnd(1, 1.8), [0.32, 0.3, 0.33]);
     }
-    ring.position.set(snap.obstacleX - 0.1, 1.4, view.carZ + 2.6);
+    ring.position.set(view.obstacleWorldX - 0.1, 1.4, view.carZ + 2.6);
     age = 0;
   }
 
@@ -58,7 +58,7 @@ export function impactBurst(view) {
         reset();
       }
       age += dt;
-      flash.position.set(snap.obstacleX - 1, 2, view.carZ + 2);
+      flash.position.set(view.obstacleWorldX - 1, 2, view.carZ + 2);
       flash.intensity = age < FLASH_S ? 260 * power * Math.exp(-age * 8) : 0;
       ring.material.opacity = age < RING_S ? 0.9 * (1 - age / RING_S) : 0;
       ring.scale.setScalar(0.4 + age * 11);

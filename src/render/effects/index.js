@@ -11,7 +11,10 @@ const DEFAULT_EFFECTS = [windStreaks, dust, headlightBeams, impactBurst, crashDa
 export function createEffectsManager(view, factories = DEFAULT_EFFECTS) {
   const effects = factories.map((create) => create(view));
   let enabled = true;
+  // Los efectos del vehículo (polvo, viento, faros, choque) se suspenden en caída libre y lanzamientos.
+  let suspended = false;
   view.camFx.shake = 0;
+  const applyActive = () => effects.forEach((effect) => effect.setActive(enabled && !suspended));
 
   return {
     get enabled() {
@@ -20,10 +23,15 @@ export function createEffectsManager(view, factories = DEFAULT_EFFECTS) {
     setEnabled(on) {
       enabled = on;
       view.setBloom(on);
-      effects.forEach((effect) => effect.setActive(on));
+      applyActive();
     },
     update(snap, dt) {
-      if (enabled) effects.forEach((effect) => effect.update(snap, dt));
+      const projectile = snap.params?.model === 'PROY';
+      if (projectile !== suspended) {
+        suspended = projectile;
+        applyActive();
+      }
+      if (enabled && !suspended) effects.forEach((effect) => effect.update(snap, dt));
     },
   };
 }

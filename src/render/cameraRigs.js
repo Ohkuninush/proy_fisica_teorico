@@ -11,18 +11,18 @@ export const RIGS = {
   side: {
     fovKick: 1,
     streaks: true,
-    pose: ({ centerX }) => ({ pos: vec(centerX + 3.5, 3.4, 19), look: vec(centerX + 3.5, 1.3, LANE_Z * 0.6), fov: 38, up: UP }),
+    pose: ({ centerX, carY = 0 }) => ({ pos: vec(centerX + 3.5, 3.4 + carY, 19), look: vec(centerX + 3.5, 1.3 + carY, LANE_Z * 0.6), fov: 38, up: UP }),
   },
   cinematic: {
     fovKick: 0.4,
     streaks: true,
-    pose: ({ centerX, obstacleX, snap, time }) => {
+    pose: ({ centerX, obstacleX, snap, time, carY = 0 }) => {
       if (snap.impact) {
         return { pos: vec(obstacleX - 9, 1.4, 12), look: vec(obstacleX - 1.5, 1.7, LANE_Z), fov: 34, up: UP };
       }
       return {
-        pos: vec(centerX - 7 + 2.5 * Math.sin(time * 0.3), 0.95 + 0.3 * Math.sin(time * 0.55), 9 + 2 * Math.cos(time * 0.25)),
-        look: vec(centerX + 5, 1.3, LANE_Z),
+        pos: vec(centerX - 7 + 2.5 * Math.sin(time * 0.3), 0.95 + carY + 0.3 * Math.sin(time * 0.55), 9 + 2 * Math.cos(time * 0.25)),
+        look: vec(centerX + 5, 1.3 + carY, LANE_Z),
         fov: 32,
         up: UP,
       };
@@ -31,7 +31,7 @@ export const RIGS = {
   aerial: {
     fovKick: 0.2,
     streaks: false,
-    pose: ({ centerX }) => ({ pos: vec(centerX + 6, 24, 17), look: vec(centerX + 6, 0, LANE_Z - 1), fov: 42, up: UP }),
+    pose: ({ centerX, carY = 0 }) => ({ pos: vec(centerX + 6, 24 + carY, 17), look: vec(centerX + 6, carY, LANE_Z - 1), fov: 42, up: UP }),
   },
   top: {
     fovKick: 0,
@@ -41,22 +41,28 @@ export const RIGS = {
   chase: {
     fovKick: 1,
     streaks: true,
-    pose: ({ carX }) => ({ pos: vec(carX - 8.5, 3.0, LANE_Z + 0.6), look: vec(carX + 22, 1.3, LANE_Z), fov: 52, up: UP }),
+    pose: ({ carX, carY = 0 }) => ({ pos: vec(carX - 8.5, 3.0 + carY, LANE_Z + 0.6), look: vec(carX + 22, 1.3 + carY, LANE_Z), fov: 52, up: UP }),
   },
   driver: {
     fovKick: 1,
     streaks: true,
     beams: false,
-    pose: ({ carX, eye: [eyeX, eyeY] }) => ({ pos: vec(carX + eyeX, eyeY, LANE_Z), look: vec(carX + eyeX + 30, eyeY - 0.2, LANE_Z), fov: 68, up: UP }),
+    pose: ({ carX, rearY = 0, pitch = 0, eye: [eyeX, eyeY] }) => {
+      // El ojo va fijo al vehículo: se inclina con él en las rampas.
+      const cos = Math.cos(pitch);
+      const sin = Math.sin(pitch);
+      const pos = vec(carX + eyeX * cos - eyeY * sin, rearY + eyeX * sin + eyeY * cos, LANE_Z);
+      return { pos, look: vec(pos.x + 30 * cos + 0.2 * sin, pos.y + 30 * sin - 0.2 * cos, LANE_Z), fov: 68, up: UP };
+    },
   },
   zoom: {
     fovKick: 0,
     streaks: false,
     beams: false,
-    pose: ({ carX, obstacleX }) => {
-      const distance = Math.max(obstacleX - carX, 1);
+    pose: ({ carX, obstacleX, carY = 0 }) => {
+      const distance = Math.max(Math.hypot(obstacleX - carX, carY), 1);
       const fov = clamp(THREE.MathUtils.radToDeg(2 * Math.atan(6 / distance)), 9, 60);
-      return { pos: vec(obstacleX - 1.2, 1.3, LANE_Z + 3.4), look: vec(carX + 2.1, 1.1, LANE_Z), fov, up: UP };
+      return { pos: vec(obstacleX - 1.2, 1.3, LANE_Z + 3.4), look: vec(carX + 2.1, 1.1 + carY, LANE_Z), fov, up: UP };
     },
   },
 };

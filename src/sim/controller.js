@@ -10,6 +10,8 @@ export const STATUS = Object.freeze({
 
 const MAX_DT = 0.1;
 
+const point = (s) => ({ t: s.t, x: s.x, v: s.v, a: s.a, y: s.y, vx: s.vx, vy: s.vy });
+
 export function createController(initialParams, deps = {}) {
   const raf = deps.raf ?? ((fn) => requestAnimationFrame(fn));
   const caf = deps.caf ?? ((id) => cancelAnimationFrame(id));
@@ -34,7 +36,7 @@ export function createController(initialParams, deps = {}) {
   function snapshot() {
     const s = experiment.evaluate(t);
     const { params } = experiment;
-    const traveled = s.x - params.x0;
+    const { traveled, remaining } = experiment.progress(s);
     return {
       status,
       params,
@@ -42,12 +44,18 @@ export function createController(initialParams, deps = {}) {
       x: s.x,
       v: s.v,
       a: s.a,
+      h: s.h,
+      slope: s.slope,
       traveled,
-      remaining: Math.max(0, params.gap - traveled),
+      remaining,
+      y: s.y,
+      vx: s.vx,
+      vy: s.vy,
       vMax,
       impact,
       obstacleX: experiment.obstacleX,
       tEnd: experiment.tEnd,
+      vPeak: experiment.vPeak,
     };
   }
 
@@ -63,7 +71,7 @@ export function createController(initialParams, deps = {}) {
     impact = null;
     history = [];
     const s = sample();
-    history.push({ t: s.t, x: s.x, v: s.v, a: s.a });
+    history.push(point(s));
   }
 
   function stopLoop() {
@@ -76,7 +84,7 @@ export function createController(initialParams, deps = {}) {
     if (status !== STATUS.RUNNING) return;
     t = Math.min(t + Math.min(Math.max(dt, 0), MAX_DT), experiment.tEnd);
     const s = sample();
-    history.push({ t: s.t, x: s.x, v: s.v, a: s.a });
+    history.push(point(s));
     if (s.finished) {
       status = s.collided ? STATUS.COLLIDED : STATUS.FINISHED;
       stopLoop();

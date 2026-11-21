@@ -27,8 +27,11 @@ export const STATUS_STYLE = {
 
 export const GOAL_STATUS = { label: 'META', color: COLORS.lime };
 
+export const GROUND_STATUS = { label: 'EN EL SUELO', color: COLORS.lime };
+
 export const statusStyleOf = (entry) => {
   const { status } = entry.result;
+  if (status === 'collided' && entry.params?.model === 'PROY') return GROUND_STATUS;
   if (status === 'collided' && hasGoal(entry.visuals)) return GOAL_STATUS;
   return STATUS_STYLE[status] ?? { label: status, color: COLORS.violet };
 };

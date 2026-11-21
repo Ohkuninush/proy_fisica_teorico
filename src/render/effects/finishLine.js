@@ -33,7 +33,7 @@ export function finishLine(view) {
     age = 0;
     rain = 0;
     view.getGoal()?.celebrate();
-    for (let i = 0; i < CONFETTI_BURST; i++) spawn(snap.obstacleX, 6, rnd(2, 7));
+    for (let i = 0; i < CONFETTI_BURST; i++) spawn(view.obstacleWorldX, 6, rnd(2, 7));
   }
 
   function reset() {
@@ -60,7 +60,7 @@ export function finishLine(view) {
         view.rollout = speed * moving - 0.5 * deceleration * moving * moving;
         if (age < CONFETTI_RAIN_S) {
           rain += CONFETTI_RAIN_PER_S * dt;
-          for (; rain >= 1; rain -= 1) spawn(snap.obstacleX, 7, rnd(5, 9));
+          for (; rain >= 1; rain -= 1) spawn(view.obstacleWorldX, 7, rnd(5, 9));
         }
       }
       confetti.update(dt);

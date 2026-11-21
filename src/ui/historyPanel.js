@@ -1,7 +1,8 @@
+import { hasRamps, trackInfo } from '../physics/track.js';
 import { MAX_COMMENT, MAX_NAME } from '../history/store.js';
 import { hasGoal } from '../visuals/catalog.js';
 import { el, iconButton } from './dom.js';
-import { formatIndicators } from './indicators.js';
+import { formatIndicators, indicatorLabels, modelLabel } from './indicators.js';
 import { createDrawer } from './overlay.js';
 
 const SVG_ATTRIBUTES = 'viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
@@ -62,19 +63,20 @@ export function createHistoryPanel({ store, drawer, backdrop, list, count, openB
 
   function entryMeta(entry, indicators) {
     const meta = el('div', 'entry-meta');
-    meta.append(el('time', '', entry.savedAt), el('span', 'tag', entry.params.model), el('span', `tag st-${entry.result.status}`, indicators.status));
+    meta.append(el('time', '', entry.savedAt), el('span', 'tag', modelLabel(entry.params)), ...(hasRamps(entry.params) ? [el('span', 'tag', trackInfo(entry.params.track).name)] : []), el('span', `tag st-${entry.result.status}`, indicators.status));
     return meta;
   }
 
   function entryGrid(entry, indicators) {
+    const labels = indicatorLabels(entry.params.model, hasGoal(entry.visuals));
     const rows = [
-      ['Tiempo', indicators.time],
-      ['Posición', indicators.position],
-      ['Recorrido', indicators.traveled],
-      ['Velocidad', `${indicators.speed} · ${indicators.speedKmh}`],
-      ['Aceleración', indicators.acceleration],
-      [hasGoal(entry.visuals) ? 'A la meta' : 'Al obstáculo', indicators.remaining],
-      ['Vel. máxima', indicators.vMax],
+      [labels.time, indicators.time],
+      [labels.position, indicators.position],
+      [labels.traveled, indicators.traveled],
+      [labels.speed, `${indicators.speed} · ${indicators.speedKmh}`],
+      [labels.acceleration, indicators.acceleration],
+      [labels.remaining, indicators.remaining],
+      [labels.vMax, indicators.vMax],
     ];
     const grid = el('dl', 'entry-grid');
     rows.forEach(([label, value]) => grid.append(el('dt', '', label), el('dd', '', value)));

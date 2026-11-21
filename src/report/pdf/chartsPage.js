@@ -1,4 +1,6 @@
 import { CHART_HEIGHT, CHART_WIDTH, renderChartPng, SERIES_STYLE } from '../chartImages.js';
+import { hasRamps } from '../../physics/track.js';
+import { projectileCaptions } from './projectileReport.js';
 import { hasGoal } from '../../visuals/catalog.js';
 import { buildSeries } from '../series.js';
 import { COLORS, CONTENT_WIDTH, MARGIN } from './layout.js';
@@ -11,12 +13,24 @@ const CHARTS = [
   { key: 'v', title: 'Velocidad vs. tiempo' },
   { key: 'a', title: 'Aceleración vs. tiempo' },
 ];
+const PROJECTILE_CHARTS = [
+  { key: 'y', title: 'Altura vs. tiempo' },
+  { key: 'vy', title: 'Velocidad vertical vs. tiempo' },
+  { key: 'path', title: 'Trayectoria (altura vs. distancia horizontal)' },
+];
 const IMAGE_HEIGHT = (CONTENT_WIDTH * CHART_HEIGHT) / CHART_WIDTH;
 
 const hexToRgb = (hex) => [1, 3, 5].map((start) => parseInt(hex.slice(start, start + 2), 16));
 
 function captionsFor(params, series, goal) {
   const impact = series.impactTime !== null ? ` El último punto marca ${goal ? 'la llegada a la meta' : 'el impacto'} (t = ${fixed(series.impactTime)} s).` : '';
+  if (hasRamps(params)) {
+    return {
+      x: `Curva por tramos: en las subidas se aplana (el vehículo frena) y en las bajadas se empina (acelera).${impact}`,
+      v: 'Rectas por tramos: la pendiente de cada recta es la aceleración de ese tramo; en la plataforma y el suelo vuelve a ser la del modelo.',
+      a: `Escalones: a = a_m - g*sen(theta) con theta = ${fixed(params.slope, 1)}°; negativa al subir, positiva al bajar.`,
+    };
+  }
   if (params.model === 'MRU') {
     return {
       x: `Recta: el vehículo avanza con rapidez constante; la pendiente es la velocidad (v0 = ${fixed(params.v0, 1)} m/s).${impact}`,
@@ -36,11 +50,12 @@ function captionsFor(params, series, goal) {
 
 export function drawChartsPage(doc, entry, dateText) {
   const series = buildSeries(entry.params, SAMPLES);
-  const captions = captionsFor(entry.params, series, hasGoal(entry.visuals));
+  const projectile = entry.params.model === 'PROY';
+  const captions = projectile ? projectileCaptions(entry.params, series) : captionsFor(entry.params, series, hasGoal(entry.visuals));
   drawHeader(doc, `Gráficas  ·  ${entry.name}`, dateText);
 
   let y = 41;
-  CHARTS.forEach(({ key, title }) => {
+  (projectile ? PROJECTILE_CHARTS : CHARTS).forEach(({ key, title }) => {
     y = drawSectionTitle(doc, title, y, hexToRgb(SERIES_STYLE[key].color)) + 2.5;
     setStroke(doc, COLORS.line);
     doc.setLineWidth(0.3);

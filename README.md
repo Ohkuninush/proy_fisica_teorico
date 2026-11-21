@@ -39,6 +39,41 @@ Abre la dirección que muestra la consola (por defecto http://localhost:5173).
 - Daño visual del choque en cinco niveles según la velocidad de impacto.
 - Cuatro metas (cuadros, arco inflable, neón y cinta) que sustituyen al obstáculo: el vehículo cruza la línea, frena y se celebra con confeti.
 - Historial persistente y reportes PDF con los textos adaptados a obstáculo o meta.
+- Recorridos con **rampas de subida, plataformas y rampas de bajada** donde la gravedad sí actúa (ver abajo).
+
+## Caída libre y lanzamientos
+
+El botón **Caída y lanzamientos** abre un tercer modelo con cuatro tipos de movimiento: **caída libre**, **lanzamiento vertical**, **lanzamiento horizontal** y **tiro parabólico**. Una pelota sale desde la azotea de un edificio de altura `h₀` (o desde el suelo si `h₀ = 0`). Es el caso ideal: sin resistencia del aire.
+
+```
+x(t)  = vx0·t
+y(t)  = h0 + vy0·t − ½·g·t²
+vy(t) = vy0 − g·t
+```
+
+- Datos: tipo de lanzamiento, altura `h₀`, rapidez `v₀` (en vertical, + arriba y − abajo), ángulo `θ` (solo tiro parabólico) y gravedad `g` (9.81 por defecto; prueba 1.62 para la Luna).
+- Antes de iniciar se muestran el tiempo de vuelo, el alcance, la altura máxima y la rapidez y el ángulo de impacto.
+- La escena dibuja la trayectoria prevista (puntos), la estela recorrida y marcas de `h₀`, altura máxima y alcance. Las vistas Persecución, Primera persona y Cinematográfica siguen a la pelota; las demás encuadran todo el lanzamiento.
+- Gráficas: altura vs. tiempo, velocidad vertical vs. tiempo y trayectoria (y vs. x). El historial y el PDF incluyen estos datos y las ecuaciones con los valores sustituidos.
+
+Archivos principales: `physics/projectile.js` (física), `render/projectile/index.js` (escena) y `report/pdf/projectileReport.js` (reporte).
+
+## Rampas y plataformas
+
+En **Recorrido** elige entre: Plano, Subida, plataforma y bajada, Colina, Doble plataforma y Escalonada, y define la **inclinación** de las rampas (1° a 35°). Las rampas se ubican automáticamente entre el inicio y el obstáculo (la distancia debe ser de al menos 30 m).
+
+Física: el movimiento se resuelve por tramos. En cada tramo la aceleración es constante:
+
+```
+a = a_motor − g·sen(θ)        (g = 9.81 m/s²)
+```
+
+- `a_motor` es 0 en MRU y el valor ingresado en MRUV.
+- En una subida (θ > 0) el vehículo frena; en una bajada (θ < 0) acelera; en plataformas y suelo vuelve a `a_motor`.
+- Si no tiene energía suficiente para subir (`v² < 2·g·h` en MRU), el panel avisa antes de iniciar cuánto alcanza a subir.
+- Posición, recorrido y gráficas se miden **a lo largo de la pista**. Los indicadores muestran además la altura y la pendiente actuales.
+
+Archivos principales: `physics/track.js` (recorridos y geometría), `physics/piecewise.js` (movimiento por tramos), `render/trackView.js` (pista → coordenadas 3D) y `render/environment/ramps.js` (modelo 3D de rampas y plataformas). Para crear un recorrido nuevo agrega un preset en `TRACKS` dentro de `physics/track.js`.
 
 ## Compartir la aplicación con un enlace
 

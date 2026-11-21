@@ -3,13 +3,15 @@ import { createExperiment } from '../physics/experiment.js';
 export function buildSeries(params, samples = 240) {
   const exp = createExperiment(params);
   const n = Math.max(2, Math.floor(samples));
-  const out = { t: [], x: [], v: [], a: [], tEnd: exp.tEnd, impactTime: exp.impactTime };
+  const out = { t: [], x: [], v: [], a: [], y: [], vy: [], tEnd: exp.tEnd, impactTime: exp.impactTime };
   for (let i = 0; i < n; i++) {
     const s = exp.evaluate((exp.tEnd * i) / (n - 1));
     out.t.push(s.t);
     out.x.push(s.x);
     out.v.push(s.v);
     out.a.push(s.a);
+    out.y.push(s.y ?? 0);
+    out.vy.push(s.vy ?? 0);
   }
   return out;
 }

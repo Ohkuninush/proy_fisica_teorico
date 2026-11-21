@@ -32,6 +32,7 @@ function buildEntry(snap, seq, now, visuals) {
       a: snap.a,
       remaining: snap.remaining,
       vMax: snap.vMax,
+      ...(snap.params.model === 'PROY' ? { y: snap.y, vx: snap.vx, vy: snap.vy } : {}),
       impact: snap.impact ? { ...snap.impact } : null,
     },
   };

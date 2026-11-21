@@ -7,11 +7,15 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CAR_LENGTH } from '../physics/params.js';
 import { NO_GOAL } from '../visuals/catalog.js';
 import { createCameraDirector } from './cameraDirector.js';
+import { DEFAULT_VIEW } from './cameraRigs.js';
 import { createCrash } from './crash/index.js';
 import { LANE_Z } from './environment/constants.js';
 import { createEnvironment } from './environment/index.js';
+import { createRamps } from './environment/ramps.js';
 import { createGoal } from './goals/index.js';
+import { createProjectileScene, followPose, framingPose } from './projectile/index.js';
 import { createObstacle } from './obstacles/index.js';
+import { createTrackView } from './trackView.js';
 import { createVehicle } from './vehicles/index.js';
 
 const HEADLIGHT_INTENSITY = 900;
@@ -19,6 +23,9 @@ const GLARE_HEADLIGHT_INTENSITY = 220;
 const GLARE_BLOOM_FACTOR = 0.45;
 const DEFAULT_COLOR = '#e5484d';
 const ROLLOUT_FRAMING = 0.5;
+const FOLLOW_VIEWS = new Set(['chase', 'driver', 'cinematic']);
+const PROJECTILE_FOV = 38;
+const BASE_CAMERA_FAR = 700;
 
 function createRenderer(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -77,6 +84,9 @@ export function createScene(canvas) {
 
   const { hemisphere, sun } = createLights(scene);
   const environment = createEnvironment(scene);
+  const trackView = createTrackView();
+  const ramps = createRamps(scene);
+  const projectile = createProjectileScene(scene);
 
   const carRoot = new THREE.Group();
   const obstacleRoot = new THREE.Group();
@@ -96,12 +106,61 @@ export function createScene(canvas) {
   let bloomEnabled = true;
   let themeBloom = bloom.strength;
   let latestSnap = null;
+  let viewId = DEFAULT_VIEW;
+  let projectileMode = false;
+  let goalVisible = false;
+  let themeFog = [scene.fog.near, scene.fog.far];
+
+  // Caída libre y lanzamientos usan su propia escena: se ocultan vehículo, obstáculo y rampas.
+  function setProjectileMode(enabled) {
+    if (enabled === projectileMode) return;
+    projectileMode = enabled;
+    carRoot.visible = !enabled;
+    goalRoot.visible = !enabled;
+    obstacleRoot.visible = !enabled && !goalVisible;
+    ramps.setVisible(!enabled);
+    projectile.setVisible(enabled);
+    if (!enabled) {
+      [scene.fog.near, scene.fog.far] = themeFog;
+      camera.far = BASE_CAMERA_FAR;
+      camera.updateProjectionMatrix();
+    }
+  }
+
+  function renderProjectile(time) {
+    const bounds = projectile.bounds;
+    const pose = FOLLOW_VIEWS.has(viewId) ? followPose(projectile.ball, bounds) : framingPose(bounds, camera.aspect, PROJECTILE_FOV);
+    camera.up.set(0, 1, 0);
+    camera.position.copy(pose.pos);
+    camera.lookAt(pose.look);
+    const far = Math.max(BASE_CAMERA_FAR, pose.distance * 4);
+    if (camera.fov !== PROJECTILE_FOV || camera.far !== far) {
+      camera.fov = PROJECTILE_FOV;
+      camera.far = far;
+      camera.updateProjectionMatrix();
+    }
+    // Con lanzamientos muy altos la cámara se aleja: la niebla se aleja con ella.
+    scene.fog.near = Math.max(themeFog[0], pose.distance * 0.9);
+    scene.fog.far = Math.max(themeFog[1], pose.distance * 3);
+    headlight.intensity = 0;
+    bloom.strength = themeBloom;
+    sun.position.set(pose.look.x - 14, 24 + pose.look.y, 14);
+    sun.target.position.copy(pose.look);
+    projectile.animate(time, pose.distance);
+    environment.update(pose.look.x, camera.position, time);
+    if (bloomEnabled) composer.render();
+    else renderer.render(scene, camera);
+  }
 
   const view = {
     scene,
     camFx: cameraEffects,
     car: carRoot,
     carZ: LANE_Z,
+    // Pose del vehículo y del obstáculo en coordenadas de la escena (con rampas, X e Y
+    // ya no coinciden con la posición física medida a lo largo de la pista).
+    carWorld: { x: 0, y: 0, pitch: 0, centerX: CAR_LENGTH / 2, centerY: 0 },
+    obstacleWorldX: 0,
     vehicleMeta: { rearWheelX: 0.85, trackZ: 0.9 },
     beam: 0.18,
     get rig() {
@@ -117,7 +176,10 @@ export function createScene(canvas) {
     },
     getObstacle: () => obstacle,
     getGoal: () => goal,
-    setView: (id) => director.setView(id),
+    setView(id) {
+      viewId = id;
+      director.setView(id);
+    },
     setBloom(enabled) {
       bloomEnabled = enabled;
     },
@@ -152,7 +214,8 @@ export function createScene(canvas) {
       }
       goal = kind === NO_GOAL ? null : createGoal(kind);
       if (goal) goalRoot.add(goal.group);
-      obstacleRoot.visible = !goal;
+      goalVisible = Boolean(goal);
+      obstacleRoot.visible = !goal && !projectileMode;
       view.rollout = 0;
     },
     restoreModels() {
@@ -165,6 +228,7 @@ export function createScene(canvas) {
       scene.fog.color.set(fogColor);
       scene.fog.near = fogNear;
       scene.fog.far = fogFar;
+      themeFog = [fogNear, fogFar];
       const [skyLight, groundLight, lightIntensity] = theme.hemi;
       hemisphere.color.set(skyLight);
       hemisphere.groundColor.set(groundLight);
@@ -190,22 +254,47 @@ export function createScene(canvas) {
     },
     update(snap) {
       latestSnap = snap;
-      const carX = snap.x + view.rollout;
-      carRoot.position.x = carX;
-      vehicle?.pose(carX, snap.a);
-      obstacleRoot.position.x = goalRoot.position.x = snap.obstacleX;
-      const centerX = carX + CAR_LENGTH / 2;
-      sun.position.set(centerX - 14, 24, 14);
-      sun.target.position.set(centerX, 0, 0);
+      setProjectileMode(snap.params.model === 'PROY');
+      if (projectileMode) {
+        projectile.update(snap);
+        return;
+      }
+      if (trackView.sync(snap.params)) ramps.build(trackView);
+      const pathX = snap.x + view.rollout;
+      const pose = trackView.carPose(pathX);
+      carRoot.position.set(pose.x, pose.y, LANE_Z);
+      carRoot.rotation.z = pose.pitch;
+      vehicle?.pose(pathX, snap.a);
+      view.carWorld = pose;
+      view.obstacleWorldX = trackView.obstacleX();
+      obstacleRoot.position.x = goalRoot.position.x = view.obstacleWorldX;
+      sun.position.set(pose.centerX - 14, 24 + pose.centerY, 14);
+      sun.target.position.set(pose.centerX, pose.centerY, 0);
     },
     render(time) {
+      if (projectileMode) {
+        renderProjectile(time);
+        return;
+      }
       const snap = latestSnap;
-      const carX = snap.x + view.rollout;
-      const centerX = carX + CAR_LENGTH / 2;
+      const pose = view.carWorld;
+      const carX = pose.x;
+      const centerX = pose.centerX;
       obstacle?.animate(time);
       goal?.animate(time);
 
-      const rig = director.frame({ carX, centerX: centerX - view.rollout * ROLLOUT_FRAMING, obstacleX: snap.obstacleX, snap, time, eye: view.vehicleMeta.eye ?? [3.4, 1.3] }, time);
+      const shot = {
+        carX,
+        centerX: centerX - view.rollout * ROLLOUT_FRAMING,
+        carY: pose.centerY,
+        rearY: pose.y,
+        pitch: pose.pitch,
+        obstacleX: view.obstacleWorldX,
+        snap,
+        time,
+        eye: view.vehicleMeta.eye ?? [3.4, 1.3],
+      };
+      const rig = director.frame(shot, time);
       const hasGlare = rig.beams === false;
       headlight.intensity = headlightIntensity(view.crash.level, hasGlare);
       bloom.strength = hasGlare ? themeBloom * GLARE_BLOOM_FACTOR : themeBloom;

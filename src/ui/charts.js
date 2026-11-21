@@ -13,6 +13,21 @@ const SERIES = [
   { key: 'a', yLabel: 'a (m/s²)', color: '#ffb703' },
 ];
 
+// Qué se grafica en cada panel según el modelo. xKey = magnitud del eje horizontal.
+const MODES = {
+  linear: [
+    { key: 'x', xKey: 't', xLabel: 't (s)', yLabel: 'x (m)', title: 'Posición vs. tiempo' },
+    { key: 'v', xKey: 't', xLabel: 't (s)', yLabel: 'v (m/s)', title: 'Velocidad vs. tiempo' },
+    { key: 'a', xKey: 't', xLabel: 't (s)', yLabel: 'a (m/s²)', title: 'Aceleración vs. tiempo' },
+  ],
+  PROY: [
+    { key: 'y', xKey: 't', xLabel: 't (s)', yLabel: 'y (m)', title: 'Altura vs. tiempo' },
+    { key: 'vy', xKey: 't', xLabel: 't (s)', yLabel: 'vy (m/s)', title: 'Velocidad vertical vs. tiempo' },
+    { key: 'y', xKey: 'x', xLabel: 'x (m)', yLabel: 'y (m)', title: 'Trayectoria (y vs. x)' },
+  ],
+};
+const TITLE_IDS = ['t-x', 't-v', 't-a'];
+
 export function decimate(points, max = MAX_POINTS) {
   if (points.length <= max) return points;
   const step = (points.length - 1) / (max - 1);
@@ -71,12 +86,24 @@ function createChart(canvas, { color, yLabel }) {
 
 export function createCharts(canvases) {
   const charts = SERIES.map((series, i) => createChart(canvases[i], series));
+  let mode = 'linear';
 
   return {
+    setMode(model) {
+      const next = model === 'PROY' ? 'PROY' : 'linear';
+      if (next === mode) return;
+      mode = next;
+      MODES[mode].forEach(({ xLabel, yLabel, title }, i) => {
+        charts[i].options.scales.x.title.text = xLabel;
+        charts[i].options.scales.y.title.text = yLabel;
+        const heading = document.getElementById(TITLE_IDS[i]);
+        if (heading) heading.textContent = title;
+      });
+    },
     update(history) {
       const points = decimate(history);
-      SERIES.forEach(({ key }, i) => {
-        charts[i].data.datasets[0].data = points.map((point) => ({ x: point.t, y: point[key] }));
+      MODES[mode].forEach(({ key, xKey }, i) => {
+        charts[i].data.datasets[0].data = points.map((point) => ({ x: point[xKey], y: point[key] }));
         charts[i].update('none');
       });
     },

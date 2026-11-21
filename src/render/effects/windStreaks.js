@@ -23,8 +23,9 @@ export function windStreaks(view) {
       material.opacity = clamp((speed - 4) / 30, 0, 0.55);
       streaks.forEach((streak) => {
         const { phase, y, z, length } = streak.userData;
-        const along = (((phase - snap.x) % LOOP_LENGTH) + LOOP_LENGTH) % LOOP_LENGTH;
-        streak.position.set(snap.x - 14 + along, y, z);
+        const { x: carX, centerY } = view.carWorld;
+        const along = (((phase - carX) % LOOP_LENGTH) + LOOP_LENGTH) % LOOP_LENGTH;
+        streak.position.set(carX - 14 + along, y + centerY, z);
         streak.scale.x = clamp(speed * 0.16, 0.1, 9) * length;
       });
     },

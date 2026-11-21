@@ -6,17 +6,42 @@ const fixed = (value, digits = 2) => Number(value).toFixed(digits);
 
 const roundedUp = (seconds) => Math.ceil(seconds * 10) / 10 + 0.1;
 
+function describeProjectile(feasibility, params) {
+  if (feasibility.reason === REASON.NO_FLIGHT) {
+    return {
+      state: 'bad',
+      title: 'No despega del suelo',
+      detail: 'Con h₀ = 0 el objeto ya está en el suelo: lánzalo hacia arriba (v₀ > 0 o θ > 0) o súbelo a una altura h₀ > 0.',
+    };
+  }
+  const s = feasibility.summary;
+  const parts = [];
+  if (s.range > 1e-6) parts.push(`Alcance: ${fixed(s.range)} m`);
+  parts.push(`Altura máx.: ${fixed(s.hMax)} m${s.tPeak > 0 ? ` (t = ${fixed(s.tPeak)} s)` : ''}`);
+  const angle = s.range > 1e-6 ? ` a ${fixed(s.impactAngle, 1)}° bajo la horizontal` : '';
+  parts.push(`Impacto: ${fixed(s.vImpact, 1)} m/s (${fixed(msToKmh(s.vImpact), 1)} km/h)${angle}`);
+  return { state: 'ok', title: `Toca el suelo en t = ${fixed(s.tFlight)} s`, detail: `${parts.join(' · ')}.` };
+}
+
 export function describeFeasibility(feasibility, params) {
+  if (params.model === 'PROY') return describeProjectile(feasibility, params);
   const { v0, gap, duration, model } = params;
   const a = model === 'MRU' ? 0 : params.a;
   const obstaclePosition = `Obstáculo en x = ${fixed(obstacleX(params), 1)} m.`;
+  const rampNote = feasibility.maxHeight > 0 ? ` Altura máxima de la pista: ${fixed(feasibility.maxHeight, 1)} m.` : '';
 
   switch (feasibility.reason) {
     case REASON.OK:
       return {
         state: 'ok',
         title: `Choque estimado en t = ${fixed(feasibility.tImpact)} s`,
-        detail: `Velocidad de impacto: ${fixed(feasibility.vImpact, 1)} m/s (${fixed(msToKmh(feasibility.vImpact), 1)} km/h). ${obstaclePosition}`,
+        detail: `Velocidad de impacto: ${fixed(feasibility.vImpact, 1)} m/s (${fixed(msToKmh(feasibility.vImpact), 1)} km/h). ${obstaclePosition}${rampNote}`,
+      };
+    case REASON.FAILS_RAMP:
+      return {
+        state: 'bad',
+        title: 'No logra subir la rampa',
+        detail: `Sube solo ${fixed(feasibility.reachedHeight, 2)} m de ${fixed(feasibility.maxHeight, 2)} m y vuelve a bajar (energía: h = v²/2g). Aumenta v₀ o a, o reduce la inclinación.`,
       };
     case REASON.STATIONARY:
       return {

@@ -1,10 +1,20 @@
-import { DEFAULTS } from '../physics/params.js';
+import { DEFAULTS, LAUNCH_DEFAULTS, LIMITS } from '../physics/params.js';
 import { $ } from '../ui/dom.js';
 
 export function bindControls({ controller, form, effects, view }) {
+  // Cambiar de modelo o restaurar valores conserva el recorrido elegido.
   function loadModelDefaults(model) {
-    form.fill(DEFAULTS[model]);
-    controller.configure(DEFAULTS[model]);
+    if (model === 'PROY') {
+      const launch = $('launch').value || DEFAULTS.PROY.launch;
+      const params = { ...DEFAULTS.PROY, launch, ...LAUNCH_DEFAULTS[launch] };
+      form.fill(params);
+      controller.configure(params);
+      return;
+    }
+    const slope = Number($('slope').value);
+    const params = { ...DEFAULTS[model], track: $('track').value || DEFAULTS[model].track, slope: slope >= LIMITS.slope[0] && slope <= LIMITS.slope[1] ? slope : DEFAULTS[model].slope };
+    form.fill(params);
+    controller.configure(params);
   }
 
   document.querySelectorAll('.seg-btn').forEach((button) => button.addEventListener('click', () => loadModelDefaults(button.dataset.model)));
