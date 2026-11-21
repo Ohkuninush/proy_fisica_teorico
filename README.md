@@ -2,6 +2,8 @@
 
 Laboratorio virtual de física en el navegador. Simula un vehículo que avanza en línea recta con **MRU** (velocidad constante) o **MRUV** (aceleración constante) hacia un **obstáculo** o una **meta**, y muestra en tiempo real su posición, velocidad y aceleración en una escena 3D, con indicadores y gráficas. Cada prueba se guarda en un historial y puede exportarse como reporte PDF.
 
+**Aplicación en línea: https://physicslab3d.jmlabsperu.pe**
+
 Stack: Vite · Three.js · Chart.js · jsPDF · Vitest (JavaScript con módulos ES, sin frameworks de UI).
 
 ## Cómo ponerlo a funcionar
